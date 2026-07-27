@@ -166,7 +166,17 @@ export default async function LotPage({ params }) {
               </div>
               <div className="spec-item">
                 <span className="spec-label">Seller</span>
-                <span className={`spec-value ${sellerClass}`}>{car.seller || 'N/A'}</span>
+                {car.seller ? (
+                  <span className={`spec-value ${sellerClass}`}>{car.seller}</span>
+                ) : (
+                  <span className="spec-value seller-tooltip">
+                    Non-insurance
+                    <span className="seller-tooltip-popup">
+                      The seller&apos;s reliability is uncertain. We recommend exercising caution before making a
+                      purchase.
+                    </span>
+                  </span>
+                )}
               </div>
             </div>
           </div>

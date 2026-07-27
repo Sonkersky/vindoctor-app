@@ -455,6 +455,44 @@ body::before {
 .spec-value { font-size: 0.95rem; color: #cbd5e1; font-weight: 600; margin-top: 2px; }
 .highlight-green { color: #22c55e; }
 
+/* Podpowiedź przy "Non-insurance" (brak nazwy sprzedawcy) */
+.seller-tooltip {
+    position: relative;
+    display: inline-block;
+    cursor: help;
+    border-bottom: 1px dotted #64748b;
+    width: fit-content;
+}
+
+.seller-tooltip-popup {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 0;
+    width: 220px;
+    background-color: rgba(30, 41, 59, 0.92);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    color: #cbd5e1;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.4;
+    padding: 10px 12px;
+    border-radius: 8px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(4px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 20;
+    pointer-events: none;
+}
+
+.seller-tooltip:hover .seller-tooltip-popup {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
 /* VIN HISTORY SECTION */
 .history-section {
     background-color: #1e293b;
