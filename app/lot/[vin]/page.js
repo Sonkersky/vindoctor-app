@@ -6,7 +6,7 @@ import ClaimModal from './ClaimModal';
 import { getCarByVin, getSimilarLots } from '@/lib/queries';
 import { formatPrice, formatDate } from '@/lib/format';
 import { buildGalleryItems, getPhotoUrls } from '@/lib/gallery';
-import { isDestructiveDocument, isSellerFlagged, saleStatusPill, extraInfoFields } from '@/lib/lotHelpers';
+import { isDestructiveDocument, sellerColorClass, saleStatusPill, extraInfoFields } from '@/lib/lotHelpers';
 
 export async function generateMetadata({ params }) {
   const { vin } = await params;
@@ -69,7 +69,7 @@ export default async function LotPage({ params }) {
 
   const pill = saleStatusPill(car.sale_status || (car.sale_history[0] && car.sale_history[0].sale_status));
   const docDestructive = isDestructiveDocument(car.document);
-  const sellerFlagged = isSellerFlagged(car.seller, car.seller_type);
+  const sellerClass = sellerColorClass(car.seller, car.seller_type);
   const extraFields = extraInfoFields(car);
 
   const odometerText =
@@ -111,6 +111,7 @@ export default async function LotPage({ params }) {
           <div className="vin-row">
             <div className="vin-pill">VIN: {car.vin}</div>
             <span className={`auction-badge ${site}`}>{site.toUpperCase()}</span>
+            <span className={pill.className}>{pill.text}</span>
           </div>
         </div>
       </div>
@@ -125,7 +126,6 @@ export default async function LotPage({ params }) {
             <div className="price-box-top">
               <div className="label-row">
                 <div className="label">FINAL BID</div>
-                <span className={pill.className}>{pill.text}</span>
               </div>
             </div>
             <div className="amount">{formatPrice(car)}</div>
@@ -166,7 +166,7 @@ export default async function LotPage({ params }) {
               </div>
               <div className="spec-item">
                 <span className="spec-label">Seller</span>
-                <span className={`spec-value ${sellerFlagged ? 'seller-flagged' : 'seller-ok'}`}>{car.seller || 'N/A'}</span>
+                <span className={`spec-value ${sellerClass}`}>{car.seller || 'N/A'}</span>
               </div>
             </div>
           </div>

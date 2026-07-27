@@ -34,7 +34,12 @@ body::before {
 }
 
 /* HEADER & LOGO GRAFICZNE (ZMNIEJSZONE) */
-.header-logo {
+/* Zawężone do .lot-page-container (a nie goła klasa), żeby mieć wyższą
+   swoistość (specificity) niż odpowiedniki na stronie głównej — inaczej,
+   podczas nawigacji klientem Next.js (bez pełnego przeładowania), style obu
+   stron potrafią być chwilowo załadowane naraz i ta strona wygrywałaby
+   niedeterministycznie w zależności od kolejności. */
+.lot-page-container .header-logo {
     text-align: center;
     margin-bottom: 16px;
 }
@@ -44,7 +49,7 @@ body::before {
     text-decoration: none;
 }
 
-.logo-img {
+.lot-page-container .logo-img {
     height: 40px; /* Zmniejszone z 55px */
     width: auto;
     display: block;
@@ -54,7 +59,7 @@ body::before {
     animation: logoPulse 4s infinite ease-in-out;
 }
 
-.logo-img:hover {
+.lot-page-container .logo-img:hover {
     transform: scale(1.02);
 }
 
@@ -164,7 +169,7 @@ body::before {
     font-size: 0.95rem;
 }
 
-.auction-badge {
+.lot-page-container .auction-badge {
     display: inline-flex;
     align-items: center;
     padding: 6px 14px;
@@ -173,10 +178,20 @@ body::before {
     font-size: 0.85rem;
     text-transform: uppercase;
     letter-spacing: 1px;
+    /* Neutralizuje position/top/right/z-index/box-shadow z wersji tej klasy
+       na stronie głównej (.auction-badge tam jest position:absolute) — CSS
+       nadpisuje właściwości pojedynczo, więc samo zawężenie selektora
+       (.lot-page-container ...) nie wystarczy, jeśli konkurencyjna reguła
+       ustawia właściwość, której ta reguła w ogóle nie deklaruje. */
+    position: static;
+    top: auto;
+    right: auto;
+    z-index: auto;
+    box-shadow: none;
 }
 
-.auction-badge.copart { background-color: #0053a0; color: #ffffff; }
-.auction-badge.iaai { background-color: #dc2626; color: #ffffff; }
+.lot-page-container .auction-badge.copart { background-color: #0053a0; color: #ffffff; }
+.lot-page-container .auction-badge.iaai { background-color: #dc2626; color: #ffffff; }
 
 /* TWO COLUMN LAYOUT */
 .details-layout {
@@ -403,14 +418,14 @@ body::before {
     font-weight: 800;
 }
 
-/* Kolorowanie sprzedawcy: pomarańczowy dla Dealer/N-A, zielony dla pozostałych */
-.spec-value.seller-flagged {
-    color: #f97316;
+/* Kolorowanie sprzedawcy wg seller_type z API: insurance = zielony, dealer = żółty */
+.spec-value.seller-insurance {
+    color: #22c55e;
     font-weight: 800;
 }
 
-.spec-value.seller-ok {
-    color: #22c55e;
+.spec-value.seller-dealer {
+    color: #eab308;
     font-weight: 800;
 }
 
@@ -693,14 +708,7 @@ body::before {
     transform: none !important;
 }
 /* ===== FOOTER (spójna z index.html) ===== */
-.site-footer {
-    background-color: #0b1120;
-    border-top: 1px solid #1e293b;
-    padding: 40px 20px 20px;
-    margin-top: 40px;
-    position: relative;
-    z-index: 2;
-}
+/* `.site-footer` jest teraz w app/globals.css (wspólne dla index i lot) */
 
 .footer-container {
     max-width: 1400px;
