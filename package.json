@@ -2,16 +2,21 @@
   "name": "vindoctor-app",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "backfill": "node --env-file=.env.local scripts/backfill.js",
+    "seed-demo": "node --env-file=.env.local scripts/seed-demo-data.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.110.9",
     "next": "16.2.12",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "eslint": "^9",
