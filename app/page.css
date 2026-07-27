@@ -377,6 +377,14 @@ body::before {
     margin-bottom: 2px;
 }
 
+.car-title-link {
+    text-decoration: none;
+}
+
+.car-title-link:hover .car-title {
+    text-decoration: underline;
+}
+
 .vin-number {
     font-size: 0.8rem;
     color: #94a3b8;

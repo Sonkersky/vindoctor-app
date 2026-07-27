@@ -27,7 +27,9 @@ function CarTile({ car }) {
         <span className={`auction-badge ${site}`}>{site.toUpperCase()}</span>
       </Link>
       <div className="card-body">
-        <h2 className="car-title">{title}</h2>
+        <Link href={`/lot/${encodeURIComponent(car.vin)}`} className="car-title-link">
+          <h2 className="car-title">{title}</h2>
+        </Link>
         <div className="vin-number">VIN: {car.vin}</div>
         <div className="details-grid">
           <div className="detail-item">
