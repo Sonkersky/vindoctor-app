@@ -65,7 +65,7 @@ export async function GET(request) {
   let pagesDone = 0;
   let totalPages = null;
   let savedSold = 0;
-  let skippedNotSold = 0;
+  let savedNotSold = 0;
   const errors = [];
 
   try {
@@ -76,13 +76,12 @@ export async function GET(request) {
       for (const record of result.data || []) {
         const li = record.lot_info || {};
         const saleStatus = (li.sale_status || record.sale_status || '').toLowerCase();
-        if (saleStatus !== 'sold') {
-          skippedNotSold++;
-          continue;
-        }
         try {
           const saved = await upsertCarFromUpdbd(record);
-          if (saved) savedSold++;
+          if (saved) {
+            if (saleStatus === 'sold') savedSold++;
+            else savedNotSold++;
+          }
         } catch (err) {
           errors.push({ vin: record.vin, message: err.message });
         }
@@ -111,7 +110,7 @@ export async function GET(request) {
       totalPages,
       finishedWholeRange,
       savedSold,
-      skippedNotSold,
+      savedNotSold,
       errors,
     });
   } catch (err) {

@@ -45,6 +45,7 @@ create table if not exists cars (
   purchase_price        numeric,
   sale_date             timestamptz,
   sale_status           text,
+  sale_type             text,           -- 'auction' | 'buynow' | 'timed'
 
   -- media (tablice URL-i)
   link_img_hd           jsonb default '[]'::jsonb,
@@ -117,3 +118,8 @@ create table if not exists sync_state (
   value      text,
   updated_at timestamptz not null default now()
 );
+
+-- Dopisane po pierwszym wdrożeniu: kolumna sale_type (auction/buynow/timed)
+-- pod plakietkę "Sold by BUY NOW". "if not exists" — bezpieczne do
+-- wielokrotnego uruchomienia, także na bazie, która już ma tę kolumnę.
+alter table cars add column if not exists sale_type text;

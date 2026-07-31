@@ -68,6 +68,7 @@ export default async function LotPage({ params }) {
   const title = car.title || `${car.year || ''} ${car.make || ''} ${car.model || ''}`.trim();
 
   const pill = saleStatusPill(car.sale_status || (car.sale_history[0] && car.sale_history[0].sale_status));
+  const isBuyNow = (car.sale_status || '').toLowerCase() === 'sold' && (car.sale_type || '').toLowerCase() === 'buynow';
   const docDestructive = isDestructiveDocument(car.document);
   const sellerClass = sellerColorClass(car.seller, car.seller_type);
   const extraFields = extraInfoFields(car);
@@ -112,6 +113,7 @@ export default async function LotPage({ params }) {
             <div className="vin-pill">VIN: {car.vin}</div>
             <span className={`auction-badge ${site}`}>{site.toUpperCase()}</span>
             <span className={pill.className}>{pill.text}</span>
+            {isBuyNow && <span className="buynow-badge">⚡ Sold by BUY NOW</span>}
           </div>
         </div>
       </div>

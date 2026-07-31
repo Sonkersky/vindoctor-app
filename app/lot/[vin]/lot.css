@@ -412,6 +412,22 @@ body::before {
 .sale-status-pill.status-not-sold { background-color: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); }
 .sale-status-pill.status-approval { background-color: rgba(234, 179, 8, 0.15); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.4); }
 
+/* Plakietka "Sold by BUY NOW" (sale_type: buynow) */
+.buynow-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background-color: rgba(168, 85, 247, 0.15);
+    color: #c084fc;
+    border: 1px solid rgba(168, 85, 247, 0.4);
+}
+
 /* Kolorowanie krytycznych statusów dokumentu (punkt 4 listy) */
 .spec-value.doc-destructive {
     color: #ef4444;

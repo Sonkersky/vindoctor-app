@@ -35,8 +35,8 @@ async function main() {
 
   let page = 1;
   let totalPages = null;
-  let processedSold = 0;
-  let skippedNotSold = 0;
+  let savedSold = 0;
+  let savedNotSold = 0;
   let requestsUsed = 0;
 
   while (totalPages === null || page <= totalPages) {
@@ -51,14 +51,12 @@ async function main() {
       const li = record.lot_info || {};
       const saleStatus = (li.sale_status || record.sale_status || '').toLowerCase();
 
-      if (saleStatus !== 'sold') {
-        skippedNotSold++;
-        continue;
-      }
-
       try {
         const saved = await upsertCarFromUpdbd(record);
-        if (saved) processedSold++;
+        if (saved) {
+          if (saleStatus === 'sold') savedSold++;
+          else savedNotSold++;
+        }
       } catch (err) {
         console.error(`Błąd przy VIN ${record.vin}:`, err.message);
       }
@@ -67,7 +65,7 @@ async function main() {
     page++;
   }
 
-  console.log(`\nGotowe. Zapisano ${processedSold} sprzedanych lotów, pominięto ${skippedNotSold} niesprzedanych.`);
+  console.log(`\nGotowe. Zapisano ${savedSold} sprzedanych lotów i ${savedNotSold} niesprzedanych (z realną ofertą).`);
   console.log(`Zużyto ${requestsUsed} zapytań (kredytów) do apicar.store.`);
 }
 
