@@ -1,23 +1,44 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/supabaseAdmin';
-import { fetchHistoryCarsPage, fetchCarByVinFromApi } from '@/lib/apicar';
-import { upsertCar } from '@/lib/sync';
+import { fetchUpdatedHistoryLots } from '@/lib/apicar';
+import { upsertCarFromUpdbd } from '@/lib/sync';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-// Ile nowych/zaktualizowanych VIN-ów najwyżej ogarniamy w jednym uruchomieniu
-// crona — zabezpieczenie przed przypadkowym spaleniem limitu 100k zapytań/mc.
-const MAX_CARS_PER_RUN = 300;
-const LISTING_PAGE_SIZE = 25; // apicar.store: "size must not be greater than 25"
+// Jeden dzień to zwykle ~10-13 stron po 3000 rekordów. Vercel ma twardy limit
+// czasu wykonania (maxDuration), więc ograniczamy liczbę stron na jedno
+// uruchomienie i zapamiętujemy, gdzie skończyliśmy — kolejne uruchomienie
+// (cron następnego dnia albo ręczne wywołanie w międzyczasie) kontynuuje od
+// tego miejsca. Ryan potwierdził, że ten endpoint można odpytywać dowolnie
+// często, więc bezpiecznie można to też triggerować ręcznie w ciągu dnia.
+const MAX_PAGES_PER_RUN = 3;
+const PAGE_SIZE = 3000;
 
-async function getLastSyncDate(supabase) {
-  const { data } = await supabase.from('sync_state').select('value').eq('key', 'last_sale_date').maybeSingle();
-  return data?.value || null;
+async function getState(supabase) {
+  const { data } = await supabase.from('sync_state').select('key,value').in('key', ['updbd_date_from', 'updbd_page']);
+  const map = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
+  return {
+    dateFrom: map.updbd_date_from || null,
+    page: map.updbd_page ? Number(map.updbd_page) : 1,
+  };
 }
 
-async function setLastSyncDate(supabase, isoDate) {
-  await supabase.from('sync_state').upsert({ key: 'last_sale_date', value: isoDate, updated_at: new Date().toISOString() });
+async function setState(supabase, { dateFrom, page }) {
+  const now = new Date().toISOString();
+  await supabase
+    .from('sync_state')
+    .upsert([
+      { key: 'updbd_date_from', value: dateFrom, updated_at: now },
+      { key: 'updbd_page', value: String(page), updated_at: now },
+    ]);
+}
+
+function yesterdayStartUTC() {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - 1);
+  d.setUTCHours(0, 0, 0, 0);
+  return d.toISOString();
 }
 
 export async function GET(request) {
@@ -36,47 +57,64 @@ export async function GET(request) {
   }
 
   const supabase = getSupabaseClient();
-  const lastSyncDate = await getLastSyncDate(supabase);
+  const state = await getState(supabase);
+  const dateFrom = state.dateFrom || yesterdayStartUTC();
+  const dateTo = new Date().toISOString();
 
-  let page = 1;
-  let processed = 0;
-  let maxSaleDateSeen = lastSyncDate;
+  let page = state.page;
+  let pagesDone = 0;
+  let totalPages = null;
+  let savedSold = 0;
+  let skippedNotSold = 0;
   const errors = [];
 
   try {
-    while (processed < MAX_CARS_PER_RUN) {
-      const listing = await fetchHistoryCarsPage({
-        page,
-        size: LISTING_PAGE_SIZE,
-        auctionDateFrom: lastSyncDate || undefined,
-      });
+    while (pagesDone < MAX_PAGES_PER_RUN && (totalPages === null || page <= totalPages)) {
+      const result = await fetchUpdatedHistoryLots({ dateFrom, dateTo, page, size: PAGE_SIZE });
+      totalPages = result.pages ?? page;
 
-      if (listing.length === 0) break;
-
-      for (const listedCar of listing) {
-        if (processed >= MAX_CARS_PER_RUN) break;
+      for (const record of result.data || []) {
+        const li = record.lot_info || {};
+        const saleStatus = (li.sale_status || record.sale_status || '').toLowerCase();
+        if (saleStatus !== 'sold') {
+          skippedNotSold++;
+          continue;
+        }
         try {
-          const full = (await fetchCarByVinFromApi(listedCar.vin)) || listedCar;
-          await upsertCar(full);
-          processed++;
-          if (full.sale_date && (!maxSaleDateSeen || full.sale_date > maxSaleDateSeen)) {
-            maxSaleDateSeen = full.sale_date;
-          }
+          const saved = await upsertCarFromUpdbd(record);
+          if (saved) savedSold++;
         } catch (err) {
-          errors.push({ vin: listedCar.vin, message: err.message });
+          errors.push({ vin: record.vin, message: err.message });
         }
       }
 
-      if (listing.length < LISTING_PAGE_SIZE) break;
       page++;
+      pagesDone++;
     }
 
-    if (maxSaleDateSeen && maxSaleDateSeen !== lastSyncDate) {
-      await setLastSyncDate(supabase, maxSaleDateSeen);
+    const finishedWholeRange = totalPages !== null && page > totalPages;
+
+    if (finishedWholeRange) {
+      // Cały zakres dat przetworzony — następne uruchomienie zaczyna nowy
+      // zakres (od teraz), a nie od tego samego dnia od nowa.
+      await setState(supabase, { dateFrom: dateTo, page: 1 });
+    } else {
+      // Zostały jeszcze strony — zapamiętujemy dokładnie gdzie skończyliśmy.
+      await setState(supabase, { dateFrom, page });
     }
 
-    return NextResponse.json({ ok: true, processed, lastSyncDate: maxSaleDateSeen, errors });
+    return NextResponse.json({
+      ok: true,
+      dateFrom,
+      dateTo,
+      pagesDone,
+      totalPages,
+      finishedWholeRange,
+      savedSold,
+      skippedNotSold,
+      errors,
+    });
   } catch (err) {
-    return NextResponse.json({ ok: false, processed, error: err.message, errors }, { status: 500 });
+    return NextResponse.json({ ok: false, dateFrom, page, error: err.message, errors }, { status: 500 });
   }
 }

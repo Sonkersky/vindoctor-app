@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "backfill": "node --env-file=.env.local scripts/backfill.js",
+    "import-daily": "node --env-file=.env.local scripts/import-daily.js",
     "seed-demo": "node --env-file=.env.local scripts/seed-demo-data.js"
   },
   "dependencies": {
