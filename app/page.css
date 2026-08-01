@@ -233,6 +233,31 @@ body::before {
     box-shadow: 0 2px 6px rgba(0,0,0,0.4);
 }
 
+.more-filters-toggle {
+    width: 100%;
+    background: none;
+    border: none;
+    color: #38bdf8;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+    padding: 6px 0;
+    margin-bottom: 4px;
+}
+
+.more-filters-toggle:hover {
+    color: #7dd3fc;
+}
+
+.more-filters-panel {
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid #334155;
+    padding-top: 12px;
+    margin-bottom: 4px;
+}
+
 .sidebar-actions {
     display: flex;
     flex-direction: column;
@@ -346,6 +371,15 @@ body::before {
     transform: scale(1.05);
 }
 
+@keyframes tileCarouselFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.tile-carousel-fade {
+    animation: tileCarouselFadeIn 0.7s ease;
+}
+
 .tile-badges {
     position: absolute;
     top: 10px;
@@ -370,18 +404,21 @@ body::before {
 .auction-badge.iaai { background-color: #dc2626; color: #ffffff; }
 
 .tile-status-pill {
-    padding: 5px 10px;
+    display: inline-block;
+    padding: 4px 10px;
     border-radius: 6px;
-    font-weight: 800;
     font-size: 0.7rem;
+    font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    background-color: rgba(51, 65, 85, 0.85);
+    color: #cbd5e1;
+    backdrop-filter: blur(4px);
 }
 
-.tile-status-pill.status-sold { background-color: rgba(34, 197, 94, 0.9); color: #052e12; }
-.tile-status-pill.status-not-sold { background-color: rgba(239, 68, 68, 0.9); color: #450a0a; }
-.tile-status-pill.status-other { background-color: rgba(148, 163, 184, 0.9); color: #0f172a; }
+.tile-status-pill.status-sold { background-color: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.4); }
+.tile-status-pill.status-not-sold { background-color: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); }
+.tile-status-pill.status-other { background-color: rgba(234, 179, 8, 0.15); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.4); }
 
 .card-body {
     padding: 16px;

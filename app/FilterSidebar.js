@@ -15,17 +15,6 @@ const DAMAGE_OPTIONS = [
 
 const STATUS_OPTIONS = ['Run & Drive', 'Starts', 'Stationary'];
 
-const STATE_OPTIONS = [
-  ['FL', 'Florida (FL)'],
-  ['CA', 'California (CA)'],
-  ['TX', 'Texas (TX)'],
-  ['GA', 'Georgia (GA)'],
-  ['NY', 'New York (NY)'],
-  ['CO', 'Colorado (CO)'],
-  ['IL', 'Illinois (IL)'],
-  ['NV', 'Nevada (NV)'],
-];
-
 const SELLER_OPTIONS = [
   ['insurance', 'Insurance'],
   ['non-insurance', 'Non-insurance'],
@@ -52,7 +41,6 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
   const [model, setModel] = useState(initialFilters.model || '');
   const [damage, setDamage] = useState(initialFilters.damage || '');
   const [status, setStatus] = useState(initialFilters.status || '');
-  const [state, setState] = useState(initialFilters.state || '');
   const [sellerCategory, setSellerCategory] = useState(initialFilters.sellerCategory || '');
   const [fuel, setFuel] = useState(initialFilters.fuel || '');
   const [cylinders, setCylinders] = useState(initialFilters.cylinders || '');
@@ -74,6 +62,13 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
   );
   const [engineSizeTo, setEngineSizeTo] = useState(
     initialFilters.engineSizeTo ? Number(initialFilters.engineSizeTo) : ENGINE_SIZE_MAX
+  );
+
+  // "More Filters" domyślnie zwinięte, żeby przycisk "Apply Filters" był
+  // widoczny bez przewijania — rozwija się tylko, gdy ktoś doda filtr
+  // schowany w środku (albo kliknie ręcznie).
+  const [showMore, setShowMore] = useState(
+    Boolean(auction || damage || status || fuel || cylinders)
   );
 
   const models = useMemo(() => {
@@ -118,7 +113,6 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
     if (model) params.set('model', model);
     if (damage) params.set('damage', damage);
     if (status) params.set('status', status);
-    if (state) params.set('state', state);
     if (sellerCategory) params.set('sellerCategory', sellerCategory);
     if (fuel) params.set('fuel', fuel);
     if (cylinders) params.set('cylinders', cylinders);
@@ -146,7 +140,6 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
     setModel('');
     setDamage('');
     setStatus('');
-    setState('');
     setSellerCategory('');
     setFuel('');
     setCylinders('');
@@ -177,11 +170,26 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
       </div>
 
       <div className="filter-group">
-        <label className="filter-label">Auction House</label>
-        <select className="filter-select" value={auction} onChange={(e) => setAuction(e.target.value)}>
-          <option value="">All (Copart & IAAI)</option>
-          <option value="1">Copart</option>
-          <option value="2">IAAI</option>
+        <label className="filter-label">Vehicle Type</label>
+        <select className="filter-select" value={vehicleType} onChange={(e) => setVehicleType(e.target.value)}>
+          <option value="">All Types</option>
+          {VEHICLE_TYPE_OPTIONS.map((v) => (
+            <option key={v} value={v}>
+              {v}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="filter-group">
+        <label className="filter-label">Seller</label>
+        <select className="filter-select" value={sellerCategory} onChange={(e) => setSellerCategory(e.target.value)}>
+          <option value="">All Sellers</option>
+          {SELLER_OPTIONS.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -211,78 +219,6 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
           {models.map((m) => (
             <option key={m} value={m}>
               {m}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="filter-group">
-        <label className="filter-label">Vehicle Type</label>
-        <select className="filter-select" value={vehicleType} onChange={(e) => setVehicleType(e.target.value)}>
-          <option value="">All Types</option>
-          {VEHICLE_TYPE_OPTIONS.map((v) => (
-            <option key={v} value={v}>
-              {v}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="filter-group">
-        <label className="filter-label">Primary Damage</label>
-        <select className="filter-select" value={damage} onChange={(e) => setDamage(e.target.value)}>
-          <option value="">All Damage Types</option>
-          {DAMAGE_OPTIONS.map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="filter-group">
-        <label className="filter-label">Vehicle Status</label>
-        <select className="filter-select" value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">All Statuses</option>
-          {STATUS_OPTIONS.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="filter-group">
-        <label className="filter-label">Seller</label>
-        <select className="filter-select" value={sellerCategory} onChange={(e) => setSellerCategory(e.target.value)}>
-          <option value="">All Sellers</option>
-          {SELLER_OPTIONS.map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="filter-group">
-        <label className="filter-label">Engine Type</label>
-        <select className="filter-select" value={fuel} onChange={(e) => setFuel(e.target.value)}>
-          <option value="">All Engine Types</option>
-          {FUEL_OPTIONS.map((f) => (
-            <option key={f} value={f}>
-              {f}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="filter-group">
-        <label className="filter-label">Cylinders</label>
-        <select className="filter-select" value={cylinders} onChange={(e) => setCylinders(e.target.value)}>
-          <option value="">Any</option>
-          {CYLINDERS_OPTIONS.map((c) => (
-            <option key={c} value={c}>
-              {c}
             </option>
           ))}
         </select>
@@ -391,17 +327,70 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
         </div>
       </div>
 
-      <div className="filter-group">
-        <label className="filter-label">Location (State)</label>
-        <select className="filter-select" value={state} onChange={(e) => setState(e.target.value)}>
-          <option value="">All States</option>
-          {STATE_OPTIONS.map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <button type="button" className="more-filters-toggle" onClick={() => setShowMore((v) => !v)}>
+        {showMore ? '▴ Fewer Filters' : '▾ More Filters'}
+      </button>
+
+      {showMore && (
+        <div className="more-filters-panel">
+          <div className="filter-group">
+            <label className="filter-label">Auction House</label>
+            <select className="filter-select" value={auction} onChange={(e) => setAuction(e.target.value)}>
+              <option value="">All (Copart & IAAI)</option>
+              <option value="1">Copart</option>
+              <option value="2">IAAI</option>
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label className="filter-label">Primary Damage</label>
+            <select className="filter-select" value={damage} onChange={(e) => setDamage(e.target.value)}>
+              <option value="">All Damage Types</option>
+              {DAMAGE_OPTIONS.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label className="filter-label">Vehicle Status</label>
+            <select className="filter-select" value={status} onChange={(e) => setStatus(e.target.value)}>
+              <option value="">All Statuses</option>
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label className="filter-label">Engine Type</label>
+            <select className="filter-select" value={fuel} onChange={(e) => setFuel(e.target.value)}>
+              <option value="">All Engine Types</option>
+              {FUEL_OPTIONS.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label className="filter-label">Cylinders</label>
+            <select className="filter-select" value={cylinders} onChange={(e) => setCylinders(e.target.value)}>
+              <option value="">Any</option>
+              {CYLINDERS_OPTIONS.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
       <div className="sidebar-actions">
         <button className="btn btn-primary" onClick={applyFilters}>

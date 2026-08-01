@@ -1,24 +1,28 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-const ROTATE_MS = 4000;
+const ROTATE_MS = 5000;
+const MAX_PHOTOS = 3;
 
 export default function TileImageCarousel({ images, alt }) {
+  const rotationImages = useMemo(() => (images || []).slice(0, MAX_PHOTOS), [images]);
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
-    if (!images || images.length <= 1) return;
+    if (rotationImages.length <= 1) return;
     const id = setInterval(() => {
-      setIndex((i) => (i + 1) % images.length);
+      setIndex((i) => (i + 1) % rotationImages.length);
     }, ROTATE_MS);
     return () => clearInterval(id);
-  }, [images]);
+  }, [rotationImages]);
 
-  const src = (images && images[index]) || 'https://placehold.co/600x400/1e293b/94a3b8?text=No+Image';
+  const src = rotationImages[index] || 'https://placehold.co/600x400/1e293b/94a3b8?text=No+Image';
 
   return (
+    // key={index} wymusza remount przy każdej zmianie zdjęcia, dzięki czemu
+    // animacja CSS (fade-in) odpala się od nowa za każdym razem.
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={alt} className="card-image" loading="lazy" />
+    <img key={index} src={src} alt={alt} className="card-image tile-carousel-fade" loading="lazy" />
   );
 }

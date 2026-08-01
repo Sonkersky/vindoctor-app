@@ -90,7 +90,6 @@ export default async function HomePage({ searchParams }) {
     model: sp.model || '',
     damage: sp.damage || '',
     status: sp.status || '',
-    state: sp.state || '',
     sellerCategory: sp.sellerCategory || '',
     fuel: sp.fuel || '',
     cylinders: sp.cylinders || '',
