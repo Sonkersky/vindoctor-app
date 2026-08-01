@@ -37,6 +37,7 @@ create table if not exists cars (
   damage_pr             text,
   damage_sec            text,
   document              text,
+  document_detail       text,   -- wersja szczegółowa z API (np. "Salvage (Texas)")
   seller                text,
   seller_type           text,
   status                text,
@@ -139,3 +140,7 @@ begin
     alter table cars rename column engine_size_num to engine_size;
   end if;
 end $$;
+
+-- Dopisane po znalezieniu bardziej szczegółowego opisu dokumentu w API
+-- (document_old, np. "Salvage (Texas)" zamiast uproszczonego "Salvage").
+alter table cars add column if not exists document_detail text;

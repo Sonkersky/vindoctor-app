@@ -6,7 +6,7 @@ import ClaimModal from './ClaimModal';
 import { getCarByVin, getSimilarLots } from '@/lib/queries';
 import { formatPrice, formatDate } from '@/lib/format';
 import { buildGalleryItems, getPhotoUrls } from '@/lib/gallery';
-import { isDestructiveDocument, sellerColorClass, saleStatusPill, extraInfoFields } from '@/lib/lotHelpers';
+import { isDestructiveDocument, sellerDisplay, saleStatusPill, extraInfoFields } from '@/lib/lotHelpers';
 
 export async function generateMetadata({ params }) {
   const { vin } = await params;
@@ -70,7 +70,7 @@ export default async function LotPage({ params }) {
   const pill = saleStatusPill(car.sale_status || (car.sale_history[0] && car.sale_history[0].sale_status));
   const isBuyNow = (car.sale_status || '').toLowerCase() === 'sold' && (car.sale_type || '').toLowerCase() === 'buynow';
   const docDestructive = isDestructiveDocument(car.document);
-  const sellerClass = sellerColorClass(car.seller, car.seller_type);
+  const seller = sellerDisplay(car.seller, car.seller_type);
   const extraFields = extraInfoFields(car);
 
   const odometerText =
@@ -168,16 +168,16 @@ export default async function LotPage({ params }) {
               </div>
               <div className="spec-item">
                 <span className="spec-label">Seller</span>
-                {car.seller ? (
-                  <span className={`spec-value ${sellerClass}`}>{car.seller}</span>
-                ) : (
-                  <span className="spec-value seller-tooltip">
-                    Non-insurance
+                {seller.showTooltip ? (
+                  <span className={`spec-value ${seller.className} seller-tooltip`}>
+                    {seller.text}
                     <span className="seller-tooltip-popup">
                       The seller&apos;s reliability is uncertain. We recommend exercising caution before making a
                       purchase.
                     </span>
                   </span>
+                ) : (
+                  <span className={`spec-value ${seller.className}`}>{seller.text}</span>
                 )}
               </div>
             </div>

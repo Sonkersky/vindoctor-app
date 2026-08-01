@@ -434,14 +434,14 @@ body::before {
     font-weight: 800;
 }
 
-/* Kolorowanie sprzedawcy wg seller_type z API: insurance = zielony, dealer = żółty */
+/* Kolorowanie sprzedawcy: Insurance = zielony, Non-insurance (w tym dealer) = pomarańczowy */
 .spec-value.seller-insurance {
     color: #22c55e;
     font-weight: 800;
 }
 
-.spec-value.seller-dealer {
-    color: #eab308;
+.spec-value.seller-non-insurance {
+    color: #f97316;
     font-weight: 800;
 }
 
