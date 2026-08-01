@@ -1,19 +1,40 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/supabaseAdmin';
 import { fetchUpdatedHistoryLots } from '@/lib/apicar';
-import { upsertCarFromUpdbd } from '@/lib/sync';
+import { upsertCarsFromUpdbdBatch } from '@/lib/sync';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+// 300s wymaga planu Vercel Pro. Na planie Hobby Vercel i tak wymusi swój
+// niższy limit — dzięki zapisowi grupowemu (patrz lib/sync.js) i budżetowi
+// czasowemu poniżej to i tak zwykle wystarcza na cały dzień w jednym
+// uruchomieniu; jeśli nie, stan (patrz getState/setState) pozwala bezpiecznie
+// dokończyć przy następnym wywołaniu (crona albo ręcznym).
+export const maxDuration = 300;
 
-// Jeden dzień to zwykle ~10-13 stron po 3000 rekordów. Vercel ma twardy limit
-// czasu wykonania (maxDuration), więc ograniczamy liczbę stron na jedno
-// uruchomienie i zapamiętujemy, gdzie skończyliśmy — kolejne uruchomienie
-// (cron następnego dnia albo ręczne wywołanie w międzyczasie) kontynuuje od
-// tego miejsca. Ryan potwierdził, że ten endpoint można odpytywać dowolnie
-// często, więc bezpiecznie można to też triggerować ręcznie w ciągu dnia.
-const MAX_PAGES_PER_RUN = 3;
 const PAGE_SIZE = 3000;
+// Margines bezpieczeństwa — przerywamy pętlę, zanim Vercel sam ubije funkcję,
+// żeby zdążyć zapisać stan i zwrócić odpowiedź zamiast urwać się w środku.
+const TIME_BUDGET_MS = (maxDuration - 20) * 1000;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Przejściowe awarie (chwilowy 5xx z Supabase/Cloudflare, statement timeout
+// przy chwilowym obciążeniu bazy) nie powinny trwale gubić danych ze strony —
+// próbujemy ponownie zamiast od razu poddawać się i jechać dalej.
+async function withRetry(fn, { retries = 2, delayMs = 2000 } = {}) {
+  let lastErr;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (attempt < retries) await sleep(delayMs);
+    }
+  }
+  throw lastErr;
+}
 
 async function getState(supabase) {
   const { data } = await supabase.from('sync_state').select('key,value').in('key', ['updbd_date_from', 'updbd_page']);
@@ -56,54 +77,77 @@ export async function GET(request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const startedAt = Date.now();
   const supabase = getSupabaseClient();
   const state = await getState(supabase);
   const dateFrom = state.dateFrom || yesterdayStartUTC();
-  const dateTo = new Date().toISOString();
+
+  // apicar.store: "date range cannot exceed 24 hours" — więc okno to zawsze
+  // dateFrom + maksymalnie 23h55min (margines bezpieczeństwa), albo "teraz",
+  // jeśli to bliżej. Jeśli zalegamy z importem więcej niż jeden dzień,
+  // kolejne uruchomienia (cron/ręczne) posuwają się o kolejne takie okno,
+  // aż dogonią bieżący czas.
+  const MAX_WINDOW_MS = (23 * 60 + 55) * 60 * 1000;
+  const now = Date.now();
+  const dateFromMs = new Date(dateFrom).getTime();
+  const dateTo = new Date(Math.min(dateFromMs + MAX_WINDOW_MS, now)).toISOString();
 
   let page = state.page;
   let pagesDone = 0;
   let totalPages = null;
   let savedSold = 0;
   let savedNotSold = 0;
+  let stoppedEarly = false;
   const errors = [];
 
   try {
-    while (pagesDone < MAX_PAGES_PER_RUN && (totalPages === null || page <= totalPages)) {
-      const result = await fetchUpdatedHistoryLots({ dateFrom, dateTo, page, size: PAGE_SIZE });
+    while (
+      (totalPages === null || page <= totalPages) &&
+      Date.now() - startedAt < TIME_BUDGET_MS
+    ) {
+      let result;
+      try {
+        result = await withRetry(() => fetchUpdatedHistoryLots({ dateFrom, dateTo, page, size: PAGE_SIZE }));
+      } catch (err) {
+        // Nie udało się nawet po ponowieniu — przerywamy TUTAJ (nie
+        // przesuwamy kursora strony), żeby następne uruchomienie spróbowało
+        // dokładnie tej samej strony zamiast bezpowrotnie ją pominąć.
+        errors.push({ page, stage: 'fetch', message: err.message });
+        stoppedEarly = true;
+        break;
+      }
+
       totalPages = result.pages ?? page;
 
-      for (const record of result.data || []) {
-        const li = record.lot_info || {};
-        const saleStatus = (li.sale_status || record.sale_status || '').toLowerCase();
-        try {
-          const saved = await upsertCarFromUpdbd(record);
-          if (saved) {
-            if (saleStatus === 'sold') savedSold++;
-            else savedNotSold++;
-          }
-        } catch (err) {
-          errors.push({ vin: record.vin, message: err.message });
-        }
+      try {
+        const batchResult = await withRetry(() => upsertCarsFromUpdbdBatch(result.data || []));
+        savedSold += batchResult.savedSold;
+        savedNotSold += batchResult.savedNotSold;
+      } catch (err) {
+        errors.push({ page, stage: 'save', message: err.message });
+        stoppedEarly = true;
+        break;
       }
 
       page++;
       pagesDone++;
     }
 
-    const finishedWholeRange = totalPages !== null && page > totalPages;
+    const finishedWholeRange = !stoppedEarly && totalPages !== null && page > totalPages;
 
     if (finishedWholeRange) {
       // Cały zakres dat przetworzony — następne uruchomienie zaczyna nowy
       // zakres (od teraz), a nie od tego samego dnia od nowa.
       await setState(supabase, { dateFrom: dateTo, page: 1 });
     } else {
-      // Zostały jeszcze strony — zapamiętujemy dokładnie gdzie skończyliśmy.
+      // Zabrakło czasu albo trafiła się awaria — zapamiętujemy dokładnie
+      // gdzie skończyliśmy, następne uruchomienie (cron albo ręczne)
+      // kontynuuje od tej samej strony, nic nie gubiąc.
       await setState(supabase, { dateFrom, page });
     }
 
     return NextResponse.json({
-      ok: true,
+      ok: !stoppedEarly,
       dateFrom,
       dateTo,
       pagesDone,
@@ -112,6 +156,7 @@ export async function GET(request) {
       savedSold,
       savedNotSold,
       errors,
+      tookMs: Date.now() - startedAt,
     });
   } catch (err) {
     return NextResponse.json({ ok: false, dateFrom, page, error: err.message, errors }, { status: 500 });
