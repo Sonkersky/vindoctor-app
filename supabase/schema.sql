@@ -16,7 +16,7 @@ create table if not exists cars (
   vehicle_type          text,
   color                 text,
   engine                text,
-  engine_size           text,
+  engine_size           numeric,        -- w litrach, np. 2.4
   cylinders             text,
   fuel                  text,
   drive                 text,
@@ -123,3 +123,19 @@ create table if not exists sync_state (
 -- pod plakietkę "Sold by BUY NOW". "if not exists" — bezpieczne do
 -- wielokrotnego uruchomienia, także na bazie, która już ma tę kolumnę.
 alter table cars add column if not exists sale_type text;
+
+-- Dopisane przy okazji dodania suwaka pojemności silnika: engine_size był
+-- tekstem, zamieniamy na liczbę (żeby dało się filtrować "od-do"). Wartości,
+-- których nie da się bezpiecznie zamienić na liczbę, zostają jako NULL
+-- zamiast wywalać cały ALTER. Zabezpieczone przed podwójnym uruchomieniem
+-- (sprawdza aktualny typ kolumny, zanim cokolwiek zmieni).
+do $$
+begin
+  if (select data_type from information_schema.columns where table_name = 'cars' and column_name = 'engine_size') = 'text' then
+    alter table cars add column engine_size_num numeric;
+    update cars set engine_size_num = engine_size::numeric
+      where engine_size is not null and engine_size ~ '^[0-9]+(\.[0-9]+)?$';
+    alter table cars drop column engine_size;
+    alter table cars rename column engine_size_num to engine_size;
+  end if;
+end $$;

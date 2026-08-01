@@ -2,15 +2,25 @@ import Link from 'next/link';
 import './page.css';
 import FilterSidebar from './FilterSidebar';
 import PaginationBar from './PaginationBar';
-import { listCars, getMakesAndModels } from '@/lib/queries';
+import TileImageCarousel from './TileImageCarousel';
+import { listCars, getMakesAndModels, getLotCounts } from '@/lib/queries';
 import { formatPrice, formatOdometer } from '@/lib/format';
+
+function tileStatusPillClass(saleStatus) {
+  const s = (saleStatus || '').toLowerCase();
+  if (s.includes('not sold')) return 'status-not-sold';
+  if (s.includes('sold')) return 'status-sold';
+  return 'status-other';
+}
 
 function CarTile({ car }) {
   const site = car.base_site === 'iaai' ? 'iaai' : 'copart';
-  const img =
-    (car.link_img_small && car.link_img_small[0]) ||
-    (car.link_img_hd && car.link_img_hd[0]) ||
-    'https://placehold.co/600x400/1e293b/94a3b8?text=No+Image';
+  const images =
+    car.link_img_small && car.link_img_small.length
+      ? car.link_img_small
+      : car.link_img_hd && car.link_img_hd.length
+        ? car.link_img_hd
+        : [];
   const title = car.title || `${car.year || ''} ${car.make || ''} ${car.model || ''}`.trim();
 
   return (
@@ -22,9 +32,13 @@ function CarTile({ car }) {
       data-state={car.state || ''}
     >
       <Link href={`/lot/${encodeURIComponent(car.vin)}`} className="card-image-wrapper">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={img} alt={title} className="card-image" loading="lazy" />
-        <span className={`auction-badge ${site}`}>{site.toUpperCase()}</span>
+        <TileImageCarousel images={images} alt={title} />
+        <div className="tile-badges">
+          {car.sale_status && (
+            <span className={`tile-status-pill ${tileStatusPillClass(car.sale_status)}`}>{car.sale_status}</span>
+          )}
+          <span className={`auction-badge ${site}`}>{site.toUpperCase()}</span>
+        </div>
       </Link>
       <div className="card-body">
         <Link href={`/lot/${encodeURIComponent(car.vin)}`} className="car-title-link">
@@ -77,16 +91,23 @@ export default async function HomePage({ searchParams }) {
     damage: sp.damage || '',
     status: sp.status || '',
     state: sp.state || '',
+    sellerCategory: sp.sellerCategory || '',
+    fuel: sp.fuel || '',
+    cylinders: sp.cylinders || '',
+    vehicleType: sp.vehicleType || '',
     yearFrom: sp.yearFrom || '',
     yearTo: sp.yearTo || '',
     mileageFrom: sp.mileageFrom || '',
     mileageTo: sp.mileageTo || '',
+    engineSizeFrom: sp.engineSizeFrom || '',
+    engineSizeTo: sp.engineSizeTo || '',
   };
   const page = Math.max(1, Number(sp.page) || 1);
 
-  const [{ cars, hasNextPage }, makesModels] = await Promise.all([
+  const [{ cars, hasNextPage }, makesModels, lotCounts] = await Promise.all([
     listCars(filters, page),
     getMakesAndModels(),
+    getLotCounts(),
   ]);
 
   const filtersQueryString = new URLSearchParams(
@@ -172,6 +193,21 @@ export default async function HomePage({ searchParams }) {
               </li>
               <li>
                 <a href="#">VIN Lookup FAQ</a>
+              </li>
+            </ul>
+          </div>
+
+          <div className="footer-col">
+            <h4 className="footer-heading">Statistics</h4>
+            <ul className="stats-list">
+              <li>
+                Lots: <span>{lotCounts.total.toLocaleString('en-US')}</span>
+              </li>
+              <li>
+                Copart Lots: <span>{lotCounts.copart.toLocaleString('en-US')}</span>
+              </li>
+              <li>
+                IAAI Lots: <span>{lotCounts.iaai.toLocaleString('en-US')}</span>
               </li>
             </ul>
           </div>

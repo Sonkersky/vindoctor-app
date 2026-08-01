@@ -346,10 +346,17 @@ body::before {
     transform: scale(1.05);
 }
 
-.auction-badge {
+.tile-badges {
     position: absolute;
     top: 10px;
     right: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    z-index: 2;
+}
+
+.auction-badge {
     padding: 5px 10px;
     border-radius: 6px;
     font-weight: 800;
@@ -357,11 +364,24 @@ body::before {
     text-transform: uppercase;
     letter-spacing: 0.5px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    z-index: 2;
 }
 
 .auction-badge.copart { background-color: #0053a0; color: #ffffff; }
 .auction-badge.iaai { background-color: #dc2626; color: #ffffff; }
+
+.tile-status-pill {
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-weight: 800;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+.tile-status-pill.status-sold { background-color: rgba(34, 197, 94, 0.9); color: #052e12; }
+.tile-status-pill.status-not-sold { background-color: rgba(239, 68, 68, 0.9); color: #450a0a; }
+.tile-status-pill.status-other { background-color: rgba(148, 163, 184, 0.9); color: #0f172a; }
 
 .card-body {
     padding: 16px;
