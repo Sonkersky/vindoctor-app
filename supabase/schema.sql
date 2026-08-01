@@ -108,7 +108,7 @@ create trigger trg_cars_updated_at
 create or replace view car_makes_models as
   select distinct make, model
   from cars
-  where lower(sale_status) = 'sold' and make is not null;
+  where lower(sale_status) = 'sold' and make is not null and vehicle_type = 'Automobile';
 
 -- Prosta tabela klucz-wartość do zapamiętywania postępu codziennej synchronizacji
 -- (np. data ostatnio zsynchronizowanego lotu), żeby /api/sync wiedział, od czego
