@@ -70,6 +70,14 @@ create index if not exists idx_cars_damage_pr   on cars (damage_pr);
 create index if not exists idx_cars_status      on cars (status);
 create index if not exists idx_cars_base_site   on cars (base_site);
 create index if not exists idx_cars_state       on cars (state);
+
+-- Dopisany po znalezieniu prawdziwej przyczyny wolnych/błędnych odpowiedzi
+-- pod obciążeniem: sale_status w ogóle nie miał indeksu, więc KAŻDE
+-- zapytanie (strona główna, stopka, filtry) robiło pełny skan całej,
+-- rosnącej codziennie tabeli. Kolumny w kolejności dopasowanej do
+-- najczęstszego zapytania (WHERE sale_status = 'Sold' ORDER BY year, sale_date).
+create index if not exists idx_cars_sale_status_year_sale_date
+  on cars (sale_status, year desc, sale_date desc);
 create index if not exists idx_cars_sale_date   on cars (sale_date desc);
 
 -- Historia sprzedaży danego VIN-u (tabela "Sales History" na stronie lotu)
