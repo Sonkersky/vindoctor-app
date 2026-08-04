@@ -80,6 +80,12 @@ create index if not exists idx_cars_sale_status_year_sale_date
   on cars (sale_status, year desc, sale_date desc);
 create index if not exists idx_cars_sale_date   on cars (sale_date desc);
 
+-- Pod widok car_makes_models (DISTINCT make/model) — bez tego Postgres musi
+-- skanować i sortować całą (rosnącą) tabelę za każdym razem, gdy cache
+-- (5 min) wygaśnie, co przy 50k+ wierszy zaczęło przekraczać statement_timeout.
+create index if not exists idx_cars_sale_status_vehicle_type_make_model
+  on cars (sale_status, vehicle_type, make, model);
+
 -- Historia sprzedaży danego VIN-u (tabela "Sales History" na stronie lotu)
 create table if not exists sale_history (
   id             bigint generated always as identity primary key,
@@ -117,7 +123,7 @@ create trigger trg_cars_updated_at
 create or replace view car_makes_models as
   select distinct make, model
   from cars
-  where lower(sale_status) = 'sold' and make is not null and vehicle_type = 'Automobile';
+  where sale_status = 'Sold' and make is not null and vehicle_type = 'Automobile';
 
 -- Prosta tabela klucz-wartość do zapamiętywania postępu codziennej synchronizacji
 -- (np. data ostatnio zsynchronizowanego lotu), żeby /api/sync wiedział, od czego
@@ -152,3 +158,21 @@ end $$;
 -- Dopisane po znalezieniu bardziej szczegółowego opisu dokumentu w API
 -- (document_old, np. "Salvage (Texas)" zamiast uproszczonego "Salvage").
 alter table cars add column if not exists document_detail text;
+
+-- Licznik lotów w stopce. Zamiast trzech osobnych zapytań "select count"
+-- liczonych przez nagłówek Content-Range (co na produkcji na Vercelu
+-- potrafiło zwracać 0 — najwyraźniej coś w tamtejszym środowisku gubiło/źle
+-- interpretowało te nagłówki), jedna funkcja zwracająca liczby wprost jako
+-- JSON w treści odpowiedzi — odporne na ten problem.
+create or replace function get_lot_counts()
+returns json
+language sql
+stable
+as $$
+  select json_build_object(
+    'total', count(*) filter (where sale_status = 'Sold'),
+    'copart', count(*) filter (where sale_status = 'Sold' and base_site = 'copart'),
+    'iaai', count(*) filter (where sale_status = 'Sold' and base_site = 'iaai')
+  )
+  from cars;
+$$;
