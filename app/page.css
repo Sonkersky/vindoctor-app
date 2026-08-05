@@ -634,3 +634,18 @@ body::before {
     .main-layout { grid-template-columns: 1fr; }
     .sidebar-filters { position: static; }
 }
+
+/* ===== TELEFONY ===== */
+@media (max-width: 600px) {
+    .top-search-form {
+        flex-direction: column;
+    }
+
+    .top-search-section {
+        padding: 16px;
+    }
+
+    .car-grid {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,10 +1,4 @@
-body {
-    background-color: #0f172a;
-    color: #f8fafc;
-    padding: 20px;
-    position: relative;
-    min-height: 100vh;
-}
+/* `body` jest w app/globals.css (wspólne dla index i lot) */
 
 /* TŁO PORTU JAK NA STRONIE GŁÓWNEJ */
 body::before {
@@ -293,7 +287,10 @@ body::before {
 
 .thumbnails-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    /* minmax(0, 1fr), nie goły 1fr — inaczej kolumny grida mają domyślne
+       min-width:auto liczone z treści i potrafią nie zmieścić się w
+       kontenerze, wymuszając scroll poziomy całej strony na telefonie. */
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 10px;
 }
 
@@ -483,8 +480,11 @@ body::before {
 .seller-tooltip-popup {
     position: absolute;
     bottom: calc(100% + 8px);
-    left: 0;
-    width: 220px;
+    left: 50%;
+    /* min() zamiast sztywnych 220px — na wąskich ekranach dymek (nawet gdy
+       niewidoczny — visibility:hidden wciąż liczy się do szerokości strony)
+       potrafił wypychać całą stronę poza ekran i wymuszać scroll w bok. */
+    width: min(220px, calc(100vw - 40px));
     background-color: rgba(30, 41, 59, 0.92);
     backdrop-filter: blur(6px);
     border: 1px solid rgba(56, 189, 248, 0.35);
@@ -497,7 +497,7 @@ body::before {
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
     opacity: 0;
     visibility: hidden;
-    transform: translateY(4px);
+    transform: translateX(-50%) translateY(4px);
     transition: opacity 0.2s ease, transform 0.2s ease;
     z-index: 20;
     pointer-events: none;
@@ -506,7 +506,7 @@ body::before {
 .seller-tooltip:hover .seller-tooltip-popup {
     opacity: 1;
     visibility: visible;
-    transform: translateY(0);
+    transform: translateX(-50%) translateY(0);
 }
 
 /* VIN HISTORY SECTION */
@@ -879,4 +879,39 @@ body::before {
     object-fit: contain;
     bottom: 4px;
     right: 4px;
+}
+
+/* ===== TELEFONY ===== */
+@media (max-width: 600px) {
+    .car-title-main {
+        font-size: 1.6rem;
+    }
+
+    .main-image-container {
+        height: 260px;
+    }
+
+    .price-box .amount {
+        font-size: 1.6rem;
+    }
+
+    .specs-list {
+        grid-template-columns: 1fr;
+    }
+
+    .thumbnails-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .modal-content {
+        padding: 20px;
+    }
+
+    .modal-actions {
+        flex-direction: column-reverse;
+    }
+
+    .modal-btn {
+        width: 100%;
+    }
 }
