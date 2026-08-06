@@ -44,7 +44,7 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
   const [sellerCategory, setSellerCategory] = useState(initialFilters.sellerCategory || '');
   const [fuel, setFuel] = useState(initialFilters.fuel || '');
   const [cylinders, setCylinders] = useState(initialFilters.cylinders || '');
-  const [vehicleType, setVehicleType] = useState(initialFilters.vehicleType || '');
+  const [vehicleType, setVehicleType] = useState(initialFilters.vehicleType || 'Automobile');
   const [yearFrom, setYearFrom] = useState(
     initialFilters.yearFrom ? Number(initialFilters.yearFrom) : YEAR_MIN
   );
@@ -116,7 +116,9 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
     if (sellerCategory) params.set('sellerCategory', sellerCategory);
     if (fuel) params.set('fuel', fuel);
     if (cylinders) params.set('cylinders', cylinders);
-    if (vehicleType) params.set('vehicleType', vehicleType);
+    // "Automobile" to domyślny filtr (patrz lib/queries.js) — nie wpisujemy
+    // go do URL-a, żeby zwykły link do strony głównej wyglądał czysto.
+    if (vehicleType && vehicleType !== 'Automobile') params.set('vehicleType', vehicleType);
     if (yearFrom > YEAR_MIN) params.set('yearFrom', String(yearFrom));
     if (yearTo < YEAR_MAX) params.set('yearTo', String(yearTo));
     if (mileageFrom > MILEAGE_MIN) params.set('mileageFrom', String(mileageFrom));
@@ -143,7 +145,7 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
     setSellerCategory('');
     setFuel('');
     setCylinders('');
-    setVehicleType('');
+    setVehicleType('Automobile');
     setYearFrom(YEAR_MIN);
     setYearTo(YEAR_MAX);
     setMileageFrom(MILEAGE_MIN);
@@ -172,7 +174,7 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
       <div className="filter-group">
         <label className="filter-label">Vehicle Type</label>
         <select className="filter-select" value={vehicleType} onChange={(e) => setVehicleType(e.target.value)}>
-          <option value="">All Types</option>
+          <option value="all">All Types</option>
           {VEHICLE_TYPE_OPTIONS.map((v) => (
             <option key={v} value={v}>
               {v}
