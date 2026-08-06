@@ -8,6 +8,12 @@ import { formatPrice, formatDate } from '@/lib/format';
 import { buildGalleryItems, getPhotoUrls } from '@/lib/gallery';
 import { isDestructiveDocument, sellerDisplay, saleStatusPill, extraInfoFields } from '@/lib/lotHelpers';
 
+// Ukryte na razie: apicar.store nie zwraca danych sale_history (sprawdzone
+// bezpośrednio w API — puste dla każdego testowanego VIN-u), więc sekcja
+// zawsze pokazywała "No previous sale records found." Zostawiamy kod gotowy
+// do włączenia z powrotem (flip na true), gdyby dane zaczęły przychodzić.
+const SHOW_SALES_HISTORY = false;
+
 export async function generateMetadata({ params }) {
   const { vin } = await params;
   const car = await getCarByVin(vin);
@@ -200,43 +206,45 @@ export default async function LotPage({ params }) {
       </div>
 
       {/* VIN SALES HISTORY */}
-      <div className="history-section">
-        <div className="history-title">
-          🕒 Sales History (VIN History)
-          <span className="history-badge-count">Records found: {car.sale_history.length}</span>
-        </div>
+      {SHOW_SALES_HISTORY && (
+        <div className="history-section">
+          <div className="history-title">
+            🕒 Sales History (VIN History)
+            <span className="history-badge-count">Records found: {car.sale_history.length}</span>
+          </div>
 
-        <div className="history-table-wrapper">
-          <table className="history-table">
-            <thead>
-              <tr>
-                <th>Auction Date</th>
-                <th>Auction House</th>
-                <th>Status</th>
-                <th>Final Price</th>
-              </tr>
-            </thead>
-            <tbody>
-              {car.sale_history.length === 0 ? (
+          <div className="history-table-wrapper">
+            <table className="history-table">
+              <thead>
                 <tr>
-                  <td colSpan={4} style={{ textAlign: 'center', color: '#64748b' }}>
-                    No previous sale records found.
-                  </td>
+                  <th>Auction Date</th>
+                  <th>Auction House</th>
+                  <th>Status</th>
+                  <th>Final Price</th>
                 </tr>
-              ) : (
-                car.sale_history.map((entry, idx) => (
-                  <tr key={idx}>
-                    <td>{formatDate(entry.sale_date)}</td>
-                    <td>{entry.base_site === 'iaai' ? 'IAAI' : 'COPART'}</td>
-                    <td>{entry.sale_status || 'N/A'}</td>
-                    <td className="price-past">{formatPrice({ purchase_price: entry.purchase_price })}</td>
+              </thead>
+              <tbody>
+                {car.sale_history.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} style={{ textAlign: 'center', color: '#64748b' }}>
+                      No previous sale records found.
+                    </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  car.sale_history.map((entry, idx) => (
+                    <tr key={idx}>
+                      <td>{formatDate(entry.sale_date)}</td>
+                      <td>{entry.base_site === 'iaai' ? 'IAAI' : 'COPART'}</td>
+                      <td>{entry.sale_status || 'N/A'}</td>
+                      <td className="price-past">{formatPrice({ purchase_price: entry.purchase_price })}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* SIMILAR LOTS */}
       {similarLots.length > 0 && (
