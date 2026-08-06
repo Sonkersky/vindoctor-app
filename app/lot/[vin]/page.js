@@ -206,34 +206,36 @@ export default async function LotPage({ params }) {
           <span className="history-badge-count">Records found: {car.sale_history.length}</span>
         </div>
 
-        <table className="history-table">
-          <thead>
-            <tr>
-              <th>Auction Date</th>
-              <th>Auction House</th>
-              <th>Status</th>
-              <th>Final Price</th>
-            </tr>
-          </thead>
-          <tbody>
-            {car.sale_history.length === 0 ? (
+        <div className="history-table-wrapper">
+          <table className="history-table">
+            <thead>
               <tr>
-                <td colSpan={4} style={{ textAlign: 'center', color: '#64748b' }}>
-                  No previous sale records found.
-                </td>
+                <th>Auction Date</th>
+                <th>Auction House</th>
+                <th>Status</th>
+                <th>Final Price</th>
               </tr>
-            ) : (
-              car.sale_history.map((entry, idx) => (
-                <tr key={idx}>
-                  <td>{formatDate(entry.sale_date)}</td>
-                  <td>{entry.base_site === 'iaai' ? 'IAAI' : 'COPART'}</td>
-                  <td>{entry.sale_status || 'N/A'}</td>
-                  <td className="price-past">{formatPrice({ purchase_price: entry.purchase_price })}</td>
+            </thead>
+            <tbody>
+              {car.sale_history.length === 0 ? (
+                <tr>
+                  <td colSpan={4} style={{ textAlign: 'center', color: '#64748b' }}>
+                    No previous sale records found.
+                  </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                car.sale_history.map((entry, idx) => (
+                  <tr key={idx}>
+                    <td>{formatDate(entry.sale_date)}</td>
+                    <td>{entry.base_site === 'iaai' ? 'IAAI' : 'COPART'}</td>
+                    <td>{entry.sale_status || 'N/A'}</td>
+                    <td className="price-past">{formatPrice({ purchase_price: entry.purchase_price })}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* SIMILAR LOTS */}

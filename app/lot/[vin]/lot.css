@@ -21,6 +21,11 @@ body::before {
 }
 
 .lot-page-container {
+    /* width:100% jawnie, nie tylko poleganie na flex "stretch" — na wąskich
+       ekranach samo staszy default potrafił dać w wyniku szerokość szerszą
+       niż realnie dostępna przestrzeń (padding body liczony niepoprawnie),
+       wymuszając scroll poziomy całej strony. */
+    width: 100%;
     max-width: 1200px;
     margin: 0 auto;
     position: relative;
@@ -524,6 +529,10 @@ body::before {
     display: flex;
     align-items: center;
     gap: 10px;
+    /* flex-wrap: wrap — bez tego tytuł + plakietka "Records found: X" (oba
+       nie zawijają się jako pojedyncze flex-itemy) potrafiły wymusić
+       szerokość większą niż ekran telefonu i scroll poziomy całej strony. */
+    flex-wrap: wrap;
 }
 
 .history-badge-count {
@@ -535,6 +544,11 @@ body::before {
     border: 1px solid #334155;
 }
 
+/* Tabela ma stałe minimalne szerokości kolumn (daty, ceny się nie zawijają)
+   — na wąskim ekranie ta wewnętrzna szerokość potrafiła być większa niż
+   cała strona i wymuszać scroll poziomy całego layoutu. Owijamy w
+   kontener z własnym scrollem, żeby to zostało lokalnym problemem tabeli. */
+.history-table-wrapper { overflow-x: auto; }
 .history-table { width: 100%; border-collapse: collapse; text-align: left; }
 .history-table th {
     background-color: #0f172a;
