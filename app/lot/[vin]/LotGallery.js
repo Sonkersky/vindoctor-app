@@ -129,12 +129,20 @@ export default function LotGallery({ galleryItems, photoUrls, vin }) {
         </button>
         {hasSpin && (
           <button className="gallery-toolbar-btn" onClick={() => jumpToGalleryType('360')}>
-            🔄 360° View
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12a9 9 0 11-3-6.7" />
+              <path d="M21 3v6h-6" />
+            </svg>
+            <span>360° View</span>
           </button>
         )}
         {hasVideo && (
           <button className="gallery-toolbar-btn" onClick={() => jumpToGalleryType('video')}>
-            🎥 Engine Video
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M23 7l-7 5 7 5V7z" />
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+            </svg>
+            <span>Engine Video</span>
           </button>
         )}
       </div>

@@ -6,6 +6,67 @@ import TileImageCarousel from './TileImageCarousel';
 import { listCars, getMakesAndModels, getLotCounts } from '@/lib/queries';
 import { formatPrice, formatOdometer } from '@/lib/format';
 
+// Proste, jednokolorowe ikony (niebieskie, minimalistyczne) zamiast emoji —
+// każda ma stały rozmiar/grubość kreski, żeby pasowały do siebie w rzędzie.
+const ICON_PROPS = {
+  width: 12,
+  height: 12,
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: '#38bdf8',
+  strokeWidth: 2.5,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+};
+
+function IconPin() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+
+function IconGauge() {
+  return (
+    <svg {...ICON_PROPS}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 12l3.5-3.5" />
+    </svg>
+  );
+}
+
+function IconKey() {
+  return (
+    <svg {...ICON_PROPS}>
+      <circle cx="7" cy="15" r="3.5" />
+      <path d="M10.3 11.7L20 2" />
+      <path d="M16.5 5.5l3 3" />
+      <path d="M14 8l2 2" />
+    </svg>
+  );
+}
+
+function IconWrench() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
+    </svg>
+  );
+}
+
+function IconDocument() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+      <path d="M14 2v6h6" />
+      <line x1="8" y1="13" x2="16" y2="13" />
+      <line x1="8" y1="17" x2="16" y2="17" />
+    </svg>
+  );
+}
+
 function tileStatusPillClass(saleStatus) {
   const s = (saleStatus || '').toLowerCase();
   if (s.includes('not sold')) return 'status-not-sold';
@@ -22,6 +83,7 @@ function CarTile({ car }) {
         ? car.link_img_hd
         : [];
   const title = car.title || `${car.year || ''} ${car.make || ''} ${car.model || ''}`.trim();
+  const isBuyNow = (car.sale_status || '').toLowerCase() === 'sold' && (car.sale_type || '').toLowerCase() === 'buynow';
 
   return (
     <div
@@ -34,8 +96,12 @@ function CarTile({ car }) {
       <Link href={`/lot/${encodeURIComponent(car.vin)}`} className="card-image-wrapper">
         <TileImageCarousel images={images} alt={title} />
         <div className="tile-badges">
-          {car.sale_status && (
-            <span className={`tile-status-pill ${tileStatusPillClass(car.sale_status)}`}>{car.sale_status}</span>
+          {isBuyNow ? (
+            <span className="tile-status-pill buynow-badge">⚡ Sold by BUY NOW</span>
+          ) : (
+            car.sale_status && (
+              <span className={`tile-status-pill ${tileStatusPillClass(car.sale_status)}`}>{car.sale_status}</span>
+            )
           )}
           <span className={`auction-badge ${site}`}>{site.toUpperCase()}</span>
         </div>
@@ -47,23 +113,23 @@ function CarTile({ car }) {
         <div className="vin-number">VIN: {car.vin}</div>
         <div className="details-grid">
           <div className="detail-item">
-            <span className="detail-label">📍 Location</span>
+            <span className="detail-label"><IconPin /> Location</span>
             <span className="detail-value">{car.location || car.state || ''}</span>
           </div>
           <div className="detail-item">
-            <span className="detail-label">🛣 Odometer</span>
+            <span className="detail-label"><IconGauge /> Odometer</span>
             <span className="detail-value">{formatOdometer(car)}</span>
           </div>
           <div className="detail-item">
-            <span className="detail-label">🗝 Status</span>
+            <span className="detail-label"><IconKey /> Status</span>
             <span className="detail-value">{car.status || ''}</span>
           </div>
           <div className="detail-item">
-            <span className="detail-label">🛠 Damage</span>
+            <span className="detail-label"><IconWrench /> Damage</span>
             <span className="detail-value">{car.damage_pr || ''}</span>
           </div>
           <div className="detail-item">
-            <span className="detail-label">📄 Sale Document</span>
+            <span className="detail-label"><IconDocument /> Sale Document</span>
             <span className="detail-value">{car.document || 'N/A'}</span>
           </div>
         </div>

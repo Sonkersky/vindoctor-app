@@ -420,6 +420,19 @@ body::before {
 .tile-status-pill.status-not-sold { background-color: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); }
 .tile-status-pill.status-other { background-color: rgba(234, 179, 8, 0.15); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.4); }
 
+/* Plakietka "Sold by BUY NOW" na kafelku (ten sam wygląd co na podstronie
+   lotu, patrz app/lot/[vin]/lot.css .buynow-badge) — pokazywana zamiast
+   zwykłego "SOLD", gdy sale_type = buynow. */
+.tile-status-pill.buynow-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background-color: rgba(168, 85, 247, 0.15);
+    color: #c084fc;
+    border: 1px solid rgba(168, 85, 247, 0.4);
+    backdrop-filter: blur(4px);
+}
+
 .card-body {
     padding: 16px;
     display: flex;
@@ -468,6 +481,13 @@ body::before {
     text-transform: uppercase;
     color: #64748b;
     font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.detail-label svg {
+    flex-shrink: 0;
 }
 
 .detail-value {
