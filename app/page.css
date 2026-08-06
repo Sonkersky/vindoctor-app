@@ -371,17 +371,19 @@ body::before {
     transform: scale(1.05);
 }
 
-/* Delikatne zaciemnienie od góry zdjęcia na kafelku — tylko po to, żeby
-   plakietki (SOLD / SOLD BY BUY NOW / COPART-IAAI) było lepiej widać na
-   jasnych zdjęciach. Tylko na miniaturach kafelków, nie na podstronie lotu. */
+/* Zaciemnienie tylko pod plakietkami (SOLD / SOLD BY BUY NOW / COPART-IAAI)
+   w rogu zdjęcia na kafelku — mały, ciemniejszy pasek u samej góry, szybko
+   zanikający, żeby NIE przyciemniać całego zdjęcia (patrz feedback: pierwsza,
+   wyższa i jaśniejsza wersja "ściemniała całe zdjęcie"). Tylko na miniaturach
+   kafelków, nie na podstronie lotu. */
 .card-image-wrapper::before {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
-    height: 70%;
-    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0));
+    height: 56px;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.6) 35%, rgba(0, 0, 0, 0) 100%);
     z-index: 1;
     pointer-events: none;
 }
