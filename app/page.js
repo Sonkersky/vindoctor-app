@@ -147,6 +147,12 @@ function CarTile({ car }) {
   );
 }
 
+export const metadata = {
+  description:
+    'Browse thousands of sold US car auction records from Copart and IAAI. Search by VIN, make, model, year, mileage and damage type.',
+  alternates: { canonical: '/' },
+};
+
 export default async function HomePage({ searchParams }) {
   const sp = await searchParams;
 

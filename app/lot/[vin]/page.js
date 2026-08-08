@@ -4,7 +4,7 @@ import './lot.css';
 import LotGallery from './LotGallery';
 import ClaimModal from './ClaimModal';
 import { getCarByVin, getSimilarLots } from '@/lib/queries';
-import { formatPrice, formatDate } from '@/lib/format';
+import { formatPrice, formatOdometer, formatDate } from '@/lib/format';
 import { buildGalleryItems, getPhotoUrls } from '@/lib/gallery';
 import { isDestructiveDocument, sellerDisplay, saleStatusPill, extraInfoFields } from '@/lib/lotHelpers';
 
@@ -21,7 +21,16 @@ export async function generateMetadata({ params }) {
     return { title: 'Vehicle not found - VINDOCTOR' };
   }
   const title = car.title || `${car.year || ''} ${car.make || ''} ${car.model || ''}`.trim();
-  return { title: `${title} - VINDOCTOR` };
+  const site = car.base_site === 'iaai' ? 'IAAI' : 'Copart';
+  const description =
+    `${title} — VIN ${car.vin}. ${car.sale_status || 'Auction'} at ${site} for ${formatPrice(car)} ` +
+    `on ${formatDate(car.sale_date)}. Odometer: ${formatOdometer(car)}. Damage: ${car.damage_pr || 'N/A'}.`;
+
+  return {
+    title: `${title} - VINDOCTOR`,
+    description,
+    alternates: { canonical: `/lot/${encodeURIComponent(car.vin)}` },
+  };
 }
 
 function similarLotCard(car) {
