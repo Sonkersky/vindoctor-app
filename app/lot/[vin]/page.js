@@ -25,11 +25,26 @@ export async function generateMetadata({ params }) {
   const description =
     `${title} — VIN ${car.vin}. ${car.sale_status || 'Auction'} at ${site} for ${formatPrice(car)} ` +
     `on ${formatDate(car.sale_date)}. Odometer: ${formatOdometer(car)}. Damage: ${car.damage_pr || 'N/A'}.`;
+  const image = (car.link_img_hd && car.link_img_hd[0]) || (car.link_img_small && car.link_img_small[0]);
+  const canonicalPath = `/lot/${encodeURIComponent(car.vin)}`;
 
   return {
     title: `${title} - VINDOCTOR`,
     description,
-    alternates: { canonical: `/lot/${encodeURIComponent(car.vin)}` },
+    alternates: { canonical: canonicalPath },
+    openGraph: {
+      title: `${title} - VINDOCTOR`,
+      description,
+      url: canonicalPath,
+      type: 'website',
+      images: image ? [{ url: image }] : undefined,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${title} - VINDOCTOR`,
+      description,
+      images: image ? [image] : undefined,
+    },
   };
 }
 
@@ -97,10 +112,48 @@ export default async function LotPage({ params }) {
   const galleryItems = buildGalleryItems(car);
   const photoUrls = getPhotoUrls(car);
 
+  // Dane strukturalne (schema.org) — pomagają Google zrozumieć, czym jest
+  // strona (konkretny pojazd, VIN, marka/model itd.), niezależnie od tego
+  // czy w wynikach pokaże się jakiś "rich result". Celowo NIE twierdzimy,
+  // że auto jest dostępne do kupienia (availability: SoldOut) — to
+  // zakończona aukcja, nie aktualna oferta, więc "InStock" byłoby
+  // wprowadzające w błąd.
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Vehicle',
+    name: title,
+    vehicleIdentificationNumber: car.vin,
+    ...(car.make ? { brand: { '@type': 'Brand', name: car.make } } : {}),
+    ...(car.model ? { model: car.model } : {}),
+    ...(car.year ? { vehicleModelDate: String(car.year) } : {}),
+    ...(car.color ? { color: car.color } : {}),
+    ...(car.fuel ? { fuelType: car.fuel } : {}),
+    ...(car.transmission ? { vehicleTransmission: car.transmission } : {}),
+    ...(car.vehicle_type ? { bodyType: car.vehicle_type } : {}),
+    ...(car.odometer != null
+      ? {
+          mileageFromOdometer: {
+            '@type': 'QuantitativeValue',
+            value: Number(car.odometer),
+            unitCode: (car.odometer_index || '').toLowerCase() === 'km' ? 'KMT' : 'SMI',
+          },
+        }
+      : {}),
+    ...(photoUrls.length ? { image: photoUrls } : {}),
+    url: `https://doctor.vin/lot/${encodeURIComponent(car.vin)}`,
+    offers: {
+      '@type': 'Offer',
+      priceCurrency: 'USD',
+      price: car.purchase_price != null ? Number(car.purchase_price) : undefined,
+      availability: 'https://schema.org/SoldOut',
+    },
+  };
+
   const similarLots = car.make && car.model ? await getSimilarLots(car.make, car.model, car.vin) : [];
 
   return (
     <>
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
     <div className="lot-page-container">
       <Script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" strategy="afterInteractive" />
 
