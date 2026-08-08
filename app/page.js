@@ -247,8 +247,8 @@ export default async function HomePage({ searchParams }) {
               <br />
               Feel free to contact
               <br />
-              <a href="mailto:info@vindoctor.com" className="footer-email">
-                info@vindoctor.com
+              <a href="mailto:contact@doctor.vin" className="footer-email">
+                contact@doctor.vin
               </a>
             </p>
           </div>
