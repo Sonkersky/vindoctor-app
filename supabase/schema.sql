@@ -176,3 +176,12 @@ as $$
   )
   from cars;
 $$;
+
+-- Sitemapa (app/sitemap.js) odpytuje "where sale_status = 'Sold' order by
+-- vin" w kawałkach po 40k (offset+limit). Bez indeksu wspierającego akurat tę
+-- kombinację Postgres musiał filtrować przez istniejący indeks, a POTEM
+-- sortować ręcznie całe ~90k pasujących wierszy przy każdym zapytaniu — przy
+-- większych przesunięciach (offset) to czasem przekraczało statement_timeout
+-- (obserwowane jako przerywane 500 na /sitemap/[id].xml na produkcji).
+create index if not exists idx_cars_sale_status_vin
+  on cars (sale_status, vin);
