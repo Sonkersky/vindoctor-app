@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache';
 import { getSupabaseClient } from '@/lib/db';
 import { SITE_URL, SITEMAP_CHUNK_SIZE, MAX_SITEMAP_CHUNKS } from '@/lib/seo';
 
@@ -12,33 +13,45 @@ export async function generateSitemaps() {
   return Array.from({ length: MAX_SITEMAP_CHUNKS }, (_, id) => ({ id }));
 }
 
+// Zaobserwowane na produkcji: pierwsze zapytanie do tego zakresu po dłuższej
+// przerwie bywa wolne (Postgres "rozgrzewa" cache) i czasem przekracza
+// statement_timeout, kolejne są szybkie. Zamiast odpytywać bazę przy KAŻDYM
+// wejściu Google (i ryzykować akurat to jedno wolne zapytanie), cache'ujemy
+// wynik na godzinę — tak samo jak getLotCounts()/getMakesAndModels().
+const getSitemapChunk = unstable_cache(
+  async (chunkId) => {
+    const supabase = getSupabaseClient();
+    const from = chunkId * SITEMAP_CHUNK_SIZE;
+    const to = from + SITEMAP_CHUNK_SIZE - 1;
+
+    const { data, error } = await supabase
+      .from('cars')
+      .select('vin, updated_at')
+      .eq('sale_status', 'Sold')
+      .order('vin')
+      .range(from, to);
+
+    if (error) throw error;
+
+    // Kilka wierszy w bazie ma śmieciowy VIN z API (np. "0" albo same zera) —
+    // prawdziwy VIN (norma ISO 3779, auta od 1981) ma zawsze 17 znaków.
+    // Filtrujemy je tutaj, żeby nie zaśmiecać sitemapy bezużytecznymi adresami.
+    return (data || []).filter((car) => car.vin && car.vin.length === 17);
+  },
+  ['sitemap-chunk'],
+  { revalidate: 3600 }
+);
+
 // UWAGA: od Next.js 16 `id` przychodzi jako Promise<string>, nie liczba —
 // trzeba go odpakować (await) i skonwertować, inaczej matematyka paginacji
 // się psuje.
 export default async function sitemap({ id }) {
   const chunkId = Number(await id);
+  const cars = await getSitemapChunk(chunkId);
 
-  const supabase = getSupabaseClient();
-  const from = chunkId * SITEMAP_CHUNK_SIZE;
-  const to = from + SITEMAP_CHUNK_SIZE - 1;
-
-  const { data, error } = await supabase
-    .from('cars')
-    .select('vin, updated_at')
-    .eq('sale_status', 'Sold')
-    .order('vin')
-    .range(from, to);
-
-  if (error) throw error;
-
-  // Kilka wierszy w bazie ma śmieciowy VIN z API (np. "0" albo same zera) —
-  // prawdziwy VIN (norma ISO 3779, auta od 1981) ma zawsze 17 znaków.
-  // Filtrujemy je tutaj, żeby nie zaśmiecać sitemapy bezużytecznymi adresami.
-  return (data || [])
-    .filter((car) => car.vin && car.vin.length === 17)
-    .map((car) => ({
-      url: `${SITE_URL}/lot/${encodeURIComponent(car.vin)}`,
-      lastModified: car.updated_at || undefined,
-      changeFrequency: 'monthly',
-    }));
+  return cars.map((car) => ({
+    url: `${SITE_URL}/lot/${encodeURIComponent(car.vin)}`,
+    lastModified: car.updated_at || undefined,
+    changeFrequency: 'monthly',
+  }));
 }
