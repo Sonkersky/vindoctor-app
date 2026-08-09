@@ -147,7 +147,7 @@ export default async function LotPage({ params }) {
       <div className="header-logo">
         <Link href="/" className="logo">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo_2.png" alt="VINDOCTOR" className="logo-img" />
+          <img src="/logo_2.png" alt="DOCTOR.VIN" className="logo-img" />
         </Link>
       </div>
 
@@ -309,7 +309,7 @@ export default async function LotPage({ params }) {
           <div className="footer-col">
             <Link href="/">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo_2.png" alt="VINDOCTOR Logo" className="footer-logo" />
+              <img src="/logo_2.png" alt="DOCTOR.VIN Logo" className="footer-logo" />
             </Link>
             <p className="footer-text">
               Got any questions?
