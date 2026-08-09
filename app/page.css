@@ -268,6 +268,7 @@ body::before {
 }
 
 .btn {
+    display: inline-block;
     padding: 11px 16px;
     border-radius: 6px;
     font-weight: 700;
@@ -275,7 +276,16 @@ body::before {
     border: none;
     font-size: 0.85rem;
     text-align: center;
+    text-decoration: none;
     transition: all 0.2s;
+}
+
+/* .btn/.page-btn są teraz czasem <button> (stany disabled), czasem <Link>
+   (realne <a href> — patrz PaginationBar.js), żeby Google mógł podążyć za
+   paginacją. Domyślne podkreślenie linku trzeba było jawnie wyłączyć. */
+.btn[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .btn:hover {
@@ -301,6 +311,9 @@ body::before {
 }
 
 .page-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     min-width: 36px;
     height: 36px;
     padding: 0 8px;
@@ -310,6 +323,7 @@ body::before {
     color: #cbd5e1;
     font-weight: 700;
     font-size: 0.85rem;
+    text-decoration: none;
     cursor: pointer;
     transition: all 0.2s;
 }
