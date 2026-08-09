@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Script from 'next/script';
+import { notFound } from 'next/navigation';
 import './lot.css';
 import LotGallery from './LotGallery';
 import ClaimModal from './ClaimModal';
@@ -76,22 +77,7 @@ export default async function LotPage({ params }) {
   const car = await getCarByVin(vin);
 
   if (!car) {
-    return (
-      <div className="lot-page-container">
-        <div className="header-logo">
-          <Link href="/" className="logo">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo_2.png" alt="VINDOCTOR" className="logo-img" />
-          </Link>
-        </div>
-        <div className="top-bar">
-          <Link href="/" className="back-link">
-            ← Back to listings
-          </Link>
-        </div>
-        <h1 className="car-title-main">Vehicle not found for this VIN.</h1>
-      </div>
-    );
+    notFound();
   }
 
   const site = car.base_site === 'iaai' ? 'iaai' : 'copart';
@@ -188,7 +174,7 @@ export default async function LotPage({ params }) {
 
       {/* LAYOUT: GALLERY + SPECS */}
       <div className="details-layout">
-        <LotGallery galleryItems={galleryItems} photoUrls={photoUrls} vin={car.vin} />
+        <LotGallery galleryItems={galleryItems} photoUrls={photoUrls} vin={car.vin} title={title} />
 
         {/* PRICE & SPECS */}
         <div className="info-section">

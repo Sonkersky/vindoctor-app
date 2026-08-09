@@ -11,7 +11,7 @@ export default function robots() {
   const sitemaps = Array.from({ length: MAX_SITEMAP_CHUNKS }, (_, id) => `${SITE_URL}/sitemap/${id}.xml`);
 
   return {
-    rules: { userAgent: '*', allow: '/' },
+    rules: { userAgent: '*', allow: '/', disallow: '/api/' },
     sitemap: sitemaps,
     host: SITE_URL,
   };

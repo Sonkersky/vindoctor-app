@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-export default function LotGallery({ galleryItems, photoUrls, vin }) {
+export default function LotGallery({ galleryItems, photoUrls, vin, title }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [zipLabel, setZipLabel] = useState('Download All Photos');
   const [zipBusy, setZipBusy] = useState(false);
@@ -99,7 +99,7 @@ export default function LotGallery({ galleryItems, photoUrls, vin }) {
         )}
         {item.type === 'image' && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img id="mainImage" src={item.url} alt="Main" />
+          <img id="mainImage" src={item.url} alt={title ? `${title} - photo ${currentIndex + 1}` : 'Vehicle photo'} />
         )}
 
         {item.type === '360' && (
@@ -152,7 +152,7 @@ export default function LotGallery({ galleryItems, photoUrls, vin }) {
           // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
           <div key={idx} className={`thumb ${idx === currentIndex ? 'active' : ''}`} onClick={() => setCurrentIndex(idx)}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={it.thumb} alt={`Thumbnail ${idx + 1}`} />
+            <img src={it.thumb} alt={title ? `${title} - thumbnail ${idx + 1}` : `Thumbnail ${idx + 1}`} />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo_2.png" alt="" className="img-watermark" />
           </div>

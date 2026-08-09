@@ -1,24 +1,31 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+
+// Wcześniej to były same <button onClick={router.push}> — Googlebot odkrywa
+// nowe strony podążając za prawdziwymi linkami (<a href>), nie klikając w
+// przyciski JS, więc paginacja była dla crawlera praktycznie niewidoczna
+// poza tym, co i tak trafiało do sitemapy. <Link> renderuje realny <a href>
+// (Next.js robi to niezależnie od tego, czy komponent jest 'use client'),
+// nawigacja klient-side działa dalej tak samo, tylko Google ma czego się złapać.
+function buildHref(page, filtersQueryString) {
+  const params = new URLSearchParams(filtersQueryString);
+  if (page > 1) {
+    params.set('page', String(page));
+  } else {
+    params.delete('page');
+  }
+  const qs = params.toString();
+  return qs ? `/?${qs}` : '/';
+}
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
 // Odtwarza dokładnie tę samą logikę co oryginalny JS: okno 10 numerków stron
 // przesuwające się wraz z bieżącą stroną, Next wyłączony gdy strona nie była pełna.
 export default function PaginationBar({ currentPage, hasNextPage, filtersQueryString }) {
-  const router = useRouter();
-
-  function goToPage(page) {
-    if (page < 1) return;
-    const params = new URLSearchParams(filtersQueryString);
-    if (page > 1) {
-      params.set('page', String(page));
-    } else {
-      params.delete('page');
-    }
-    router.push(`/?${params.toString()}`);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
   const windowSize = 10;
   const windowStart = Math.max(1, currentPage - 4);
   const pageNumbers = Array.from({ length: windowSize }, (_, i) => windowStart + i);
@@ -35,27 +42,36 @@ export default function PaginationBar({ currentPage, hasNextPage, filtersQuerySt
         marginTop: '10px',
       }}
     >
-      <button
-        className="btn btn-secondary"
-        disabled={currentPage <= 1}
-        onClick={() => goToPage(currentPage - 1)}
-      >
-        ← Prev
-      </button>
+      {currentPage > 1 ? (
+        <Link className="btn btn-secondary" href={buildHref(currentPage - 1, filtersQueryString)} onClick={scrollToTop}>
+          ← Prev
+        </Link>
+      ) : (
+        <button className="btn btn-secondary" disabled>
+          ← Prev
+        </button>
+      )}
       <div className="page-numbers">
         {pageNumbers.map((num) => (
-          <button
+          <Link
             key={num}
             className={`page-btn ${num === currentPage ? 'active' : ''}`}
-            onClick={() => goToPage(num)}
+            href={buildHref(num, filtersQueryString)}
+            onClick={scrollToTop}
           >
             {num}
-          </button>
+          </Link>
         ))}
       </div>
-      <button className="btn btn-primary" disabled={!hasNextPage} onClick={() => goToPage(currentPage + 1)}>
-        Next →
-      </button>
+      {hasNextPage ? (
+        <Link className="btn btn-primary" href={buildHref(currentPage + 1, filtersQueryString)} onClick={scrollToTop}>
+          Next →
+        </Link>
+      ) : (
+        <button className="btn btn-primary" disabled>
+          Next →
+        </button>
+      )}
     </div>
   );
 }
