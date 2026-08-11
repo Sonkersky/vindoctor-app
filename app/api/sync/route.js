@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { getSupabaseClient } from '@/lib/supabaseAdmin';
 import { fetchUpdatedHistoryLots } from '@/lib/apicar';
 import { upsertCarsFromUpdbdBatch } from '@/lib/sync';
@@ -62,6 +63,15 @@ async function setState(supabase, { dateFrom, page }) {
 // Pojedyncza porażka (albo timeout) nie jest błędem — to tylko rozgrzewka,
 // bez niej Google i tak dostanie świeże dane, tylko wolniej za pierwszym razem.
 async function warmSitemapCache() {
+  // getSitemapChunk cache'uje na 25h (patrz app/sitemap.js) — bez tego
+  // poniższe wywołania w większość dni po prostu trafiałyby w wciąż ważny
+  // wpis z poprzedniego dnia i NIC by nie odświeżyły. { expire: 0 } (nie
+  // domyślne 'max') wymusza NATYCHMIASTOWE, blokujące odświeżenie przy
+  // kolejnym wywołaniu poniżej — 'max' tylko oznaczyłby dane jako
+  // nieaktualne i odświeżył je w tle dopiero przy jakimś PRZYSZŁYM wejściu,
+  // a nam zależy, żeby to WŁAŚNIE TO wywołanie dostało już świeże dane.
+  revalidateTag('sitemap', { expire: 0 });
+
   const WARM_TIMEOUT_MS = 8000;
   const attempts = Array.from({ length: MAX_SITEMAP_CHUNKS }, (_, id) =>
     Promise.race([
