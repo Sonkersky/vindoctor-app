@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/supabaseAdmin';
 import { fetchUpdatedHistoryLots } from '@/lib/apicar';
 import { upsertCarsFromUpdbdBatch } from '@/lib/sync';
+import { getSitemapChunk } from '@/app/sitemap';
+import { MAX_SITEMAP_CHUNKS } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
 // 300s wymaga planu Vercel Pro. Na planie Hobby Vercel i tak wymusi swój
@@ -53,6 +55,22 @@ async function setState(supabase, { dateFrom, page }) {
       { key: 'updbd_date_from', value: dateFrom, updated_at: now },
       { key: 'updbd_page', value: String(page), updated_at: now },
     ]);
+}
+
+// Odpala wszystkie kawałki sitemapy równolegle, z twardym limitem czasu, żeby
+// pod żadnym pozorem nie zjeść budżetu czasowego głównej synchronizacji.
+// Pojedyncza porażka (albo timeout) nie jest błędem — to tylko rozgrzewka,
+// bez niej Google i tak dostanie świeże dane, tylko wolniej za pierwszym razem.
+async function warmSitemapCache() {
+  const WARM_TIMEOUT_MS = 8000;
+  const attempts = Array.from({ length: MAX_SITEMAP_CHUNKS }, (_, id) =>
+    Promise.race([
+      getSitemapChunk(id).then(() => true),
+      sleep(WARM_TIMEOUT_MS).then(() => false),
+    ]).catch(() => false)
+  );
+  const results = await Promise.all(attempts);
+  return { warmed: results.filter(Boolean).length, total: MAX_SITEMAP_CHUNKS };
 }
 
 function yesterdayStartUTC() {
@@ -146,7 +164,15 @@ export async function GET(request) {
       await setState(supabase, { dateFrom, page });
     }
 
+    // Best-effort "rozgrzanie" cache'u sitemapy zaraz po synchronizacji, żeby
+    // Google nigdy nie trafiał na zimne zapytanie do bazy przy własnym
+    // odwiedzeniu — patrz getSitemapChunk (app/sitemap.js), cache na godzinę.
+    // Celowo NIE wpływa na wynik/status tej odpowiedzi — to tylko optymalizacja,
+    // nie krytyczna część synchronizacji.
+    const sitemapWarmed = await warmSitemapCache().catch(() => null);
+
     return NextResponse.json({
+      sitemapWarmed,
       ok: !stoppedEarly,
       dateFrom,
       dateTo,

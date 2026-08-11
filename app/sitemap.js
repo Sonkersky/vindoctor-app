@@ -18,7 +18,7 @@ export async function generateSitemaps() {
 // statement_timeout, kolejne są szybkie. Zamiast odpytywać bazę przy KAŻDYM
 // wejściu Google (i ryzykować akurat to jedno wolne zapytanie), cache'ujemy
 // wynik na godzinę — tak samo jak getLotCounts()/getMakesAndModels().
-const getSitemapChunk = unstable_cache(
+export const getSitemapChunk = unstable_cache(
   async (chunkId) => {
     const supabase = getSupabaseClient();
     const from = chunkId * SITEMAP_CHUNK_SIZE;
