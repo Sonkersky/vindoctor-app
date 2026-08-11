@@ -187,6 +187,36 @@ create index if not exists idx_cars_sale_status_vin
   on cars (sale_status, vin);
 
 -- ============================================================
+-- RLS na starszych tabelach (cars/sale_history/sync_state)
+-- ============================================================
+-- Do tej pory nieobecne, bo do bazy sięgał wyłącznie nasz backend kluczem
+-- service_role (który i tak omija RLS). Teraz, przy koncie użytkownika, w
+-- kodzie przeglądarki pojawia się PUBLICZNY klucz "anon" — bez jawnych reguł
+-- ktokolwiek, kto ten klucz zna (a jest jawny, bo trafia do przeglądarki),
+-- mógłby przez REST API Supabase czytać/zapisywać te tabele bezpośrednio.
+-- Same reguły RLS nie wystarczą — Postgres najpierw sprawdza zwykłe
+-- uprawnienie GRANT, a dopiero potem RLS. Te tabele nigdy nie dostały
+-- jawnego GRANT dla anon/authenticated (bo do teraz nikt poza service_role
+-- ich nie potrzebował), więc bez tego "select using (true)" nic by nie dało —
+-- i tak wracałby błąd "permission denied" zanim RLS w ogóle zadziała.
+grant select on cars to anon, authenticated;
+grant select on sale_history to anon, authenticated;
+
+alter table cars enable row level security;
+drop policy if exists "cars_public_read" on cars;
+create policy "cars_public_read" on cars for select using (true);
+
+alter table sale_history enable row level security;
+drop policy if exists "sale_history_public_read" on sale_history;
+create policy "sale_history_public_read" on sale_history for select using (true);
+
+-- sync_state: wewnętrzny stan synchronizacji (kursor daty/strony) — nikt poza
+-- backendem nie powinien mieć do tego dostępu. RLS włączone, celowo BEZ
+-- żadnej polityki select/insert/update — to daje domyślną odmowę dla
+-- anon/authenticated, backend (service_role) i tak omija RLS.
+alter table sync_state enable row level security;
+
+-- ============================================================
 -- KONTA UŻYTKOWNIKÓW (logowanie/rejestracja, obserwowane, ustawienia)
 -- ============================================================
 -- Supabase Auth sam prowadzi tabelę auth.users (e-mail, hasło, sesje) —
@@ -199,6 +229,12 @@ create table if not exists profiles (
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now()
 );
+
+-- Sam RLS nie wystarczy bez bazowego GRANT (patrz komentarz przy cars/
+-- sale_history wyżej) — tu tylko dla "authenticated" (nie anon), bo profil
+-- ma sens wyłącznie dla zalogowanych; insert robi za nas trigger niżej
+-- (security definer), więc anon/authenticated nie muszą mieć insert.
+grant select, update on profiles to authenticated;
 
 alter table profiles enable row level security;
 
@@ -242,6 +278,8 @@ create table if not exists favorites (
   unique (user_id, car_vin)
 );
 
+grant select, insert, delete on favorites to authenticated;
+
 alter table favorites enable row level security;
 
 drop policy if exists "favorites_select_own" on favorites;
@@ -268,6 +306,8 @@ create table if not exists search_history (
   filters     jsonb,             -- dla search_type='filters': zastosowane filtry
   created_at  timestamptz not null default now()
 );
+
+grant select, insert, delete on search_history to authenticated;
 
 alter table search_history enable row level security;
 
