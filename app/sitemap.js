@@ -17,7 +17,16 @@ export async function generateSitemaps() {
 // przerwie bywa wolne (Postgres "rozgrzewa" cache) i czasem przekracza
 // statement_timeout, kolejne są szybkie. Zamiast odpytywać bazę przy KAŻDYM
 // wejściu Google (i ryzykować akurat to jedno wolne zapytanie), cache'ujemy
-// wynik na godzinę — tak samo jak getLotCounts()/getMakesAndModels().
+// wynik.
+//
+// revalidate ustawiony celowo DŁUGO (25h, z zapasem ponad dobowy cykl
+// synchronizacji) — 1h okazało się za krótkie: cache wygasał w ciągu dnia
+// i Google potrafił trafić na moment tuż po wygaśnięciu, czyli dokładnie w
+// to samo zimne zapytanie, któremu cache miał zapobiegać. Świeżość danych
+// (żeby NIE serwować tego samego przez 25h mimo nowych lotów) zapewnia
+// zamiast tego revalidateTag('sitemap') wywoływane po każdej synchronizacji
+// (patrz app/api/sync/route.js) — to wymusza świeże zapytanie raz dziennie,
+// niezależnie od tego, czy naturalny czas cache'a jeszcze nie minął.
 export const getSitemapChunk = unstable_cache(
   async (chunkId) => {
     const supabase = getSupabaseClient();
@@ -39,7 +48,7 @@ export const getSitemapChunk = unstable_cache(
     return (data || []).filter((car) => car.vin && car.vin.length === 17);
   },
   ['sitemap-chunk'],
-  { revalidate: 3600 }
+  { revalidate: 90000, tags: ['sitemap'] }
 );
 
 // UWAGA: od Next.js 16 `id` przychodzi jako Promise<string>, nie liczba —
