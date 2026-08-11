@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import './page.css';
 import FilterSidebar from './FilterSidebar';
+import ActiveArchiveToggle from './ActiveArchiveToggle';
 import PaginationBar from './PaginationBar';
 import TileImageCarousel from './TileImageCarousel';
+import AuthWidget from './AuthWidget';
 import { listCars, getMakesAndModels, getLotCounts } from '@/lib/queries';
 import { formatPrice, formatOdometer } from '@/lib/format';
 
@@ -74,7 +76,7 @@ function tileStatusPillClass(saleStatus) {
   return 'status-other';
 }
 
-function CarTile({ car }) {
+function CarTile({ car, isActiveView }) {
   const site = car.base_site === 'iaai' ? 'iaai' : 'copart';
   const images =
     car.link_img_small && car.link_img_small.length
@@ -96,7 +98,11 @@ function CarTile({ car }) {
       <Link href={`/lot/${encodeURIComponent(car.vin)}`} className="card-image-wrapper">
         <TileImageCarousel images={images} alt={title} />
         <div className="tile-badges">
-          {isBuyNow ? (
+          {/* Widok "Actual" to na razie placeholder (te same dane co Archive,
+              patrz komentarz przy isActiveView w HomePage) — nie pokazujemy
+              tam plakietek statusu sprzedaży, bo te loty mają w tym widoku
+              udawać jeszcze niesprzedane. */}
+          {isActiveView ? null : isBuyNow ? (
             <span className="tile-status-pill buynow-badge">⚡ Sold by BUY NOW</span>
           ) : (
             car.sale_status && (
@@ -175,6 +181,14 @@ export default async function HomePage({ searchParams }) {
   };
   const page = Math.max(1, Number(sp.page) || 1);
 
+  // Placeholder pod przyszłe/aktywne loty (patrz rozmowa o planie kont i
+  // podziale Active/Archived) — na razie apicar.store nie daje nam danych o
+  // nadchodzących aukcjach (osobny, niepotwierdzony jeszcze dostęp/koszt), więc
+  // widok "Actual" pokazuje te same dane co "Archive", tylko bez plakietek
+  // statusu sprzedaży (patrz CarTile). Podmienimy na prawdziwe dane, jak tylko
+  // będzie dostęp do właściwego feedu.
+  const isActiveView = sp.view === 'active';
+
   const [{ cars, hasNextPage }, makesModels, lotCounts] = await Promise.all([
     listCars(filters, page),
     getMakesAndModels(),
@@ -196,25 +210,31 @@ export default async function HomePage({ searchParams }) {
         </Link>
       </div>
 
-      {/* TOP SEARCH BAR */}
-      <div className="top-search-section">
-        <form className="top-search-form" action="/lot.html" method="GET">
-          <input
-            type="text"
-            name="vin"
-            className="top-search-input"
-            placeholder="Enter VIN number (e.g. 1FA6P8CF5M5123456)"
-            required
-          />
-          <button type="submit" className="btn btn-primary">
-            Search VIN
-          </button>
-        </form>
+      {/* TOP SEARCH BAR + KONTO */}
+      <div className="top-search-row">
+        <div className="top-search-section">
+          <form className="top-search-form" action="/lot.html" method="GET">
+            <input
+              type="text"
+              name="vin"
+              className="top-search-input"
+              placeholder="Enter VIN number (e.g. 1FA6P8CF5M5123456)"
+              required
+            />
+            <button type="submit" className="btn btn-primary">
+              Search VIN
+            </button>
+          </form>
+        </div>
+        <AuthWidget />
       </div>
 
       {/* MAIN LAYOUT */}
       <div className="main-layout">
-        <FilterSidebar makesModels={makesModels} initialFilters={{ ...filters, page: String(page) }} />
+        <div className="sidebar-column">
+          <ActiveArchiveToggle isActiveView={isActiveView} filtersQueryString={filtersQueryString} />
+          <FilterSidebar makesModels={makesModels} initialFilters={{ ...filters, page: String(page) }} />
+        </div>
 
         {/* VEHICLES GRID */}
         <main className="car-grid">
@@ -224,7 +244,7 @@ export default async function HomePage({ searchParams }) {
               <p style={{ marginTop: '8px' }}>Try clearing filters to see all available cars.</p>
             </div>
           ) : (
-            cars.map((car) => <CarTile key={car.vin} car={car} />)
+            cars.map((car) => <CarTile key={car.vin} car={car} isActiveView={isActiveView} />)
           )}
 
           {cars.length > 0 && (

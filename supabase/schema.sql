@@ -185,3 +185,103 @@ $$;
 -- (obserwowane jako przerywane 500 na /sitemap/[id].xml na produkcji).
 create index if not exists idx_cars_sale_status_vin
   on cars (sale_status, vin);
+
+-- ============================================================
+-- KONTA UŻYTKOWNIKÓW (logowanie/rejestracja, obserwowane, ustawienia)
+-- ============================================================
+-- Supabase Auth sam prowadzi tabelę auth.users (e-mail, hasło, sesje) —
+-- nie tworzymy jej ręcznie. "profiles" to nasze dodatkowe dane per-user
+-- (na razie: preferowana jednostka przebiegu), połączone 1:1 z auth.users.
+
+create table if not exists profiles (
+  id             uuid primary key references auth.users (id) on delete cascade,
+  mileage_unit   text not null default 'mi' check (mileage_unit in ('mi', 'km')),
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now()
+);
+
+alter table profiles enable row level security;
+
+drop policy if exists "profiles_select_own" on profiles;
+create policy "profiles_select_own" on profiles
+  for select using (auth.uid() = id);
+
+drop policy if exists "profiles_update_own" on profiles;
+create policy "profiles_update_own" on profiles
+  for update using (auth.uid() = id);
+
+-- Nowe konto = automatycznie nowy wiersz w profiles (żeby front-end nie
+-- musiał się martwić "co jeśli profil jeszcze nie istnieje").
+create or replace function handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  insert into public.profiles (id) values (new.id);
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function handle_new_user();
+
+drop trigger if exists trg_profiles_updated_at on profiles;
+create trigger trg_profiles_updated_at
+  before update on profiles
+  for each row execute function set_updated_at();
+
+-- Obserwowane loty ("serduszko" na kafelku).
+create table if not exists favorites (
+  id         bigint generated always as identity primary key,
+  user_id    uuid not null references auth.users (id) on delete cascade,
+  car_vin    text not null references cars (vin) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (user_id, car_vin)
+);
+
+alter table favorites enable row level security;
+
+drop policy if exists "favorites_select_own" on favorites;
+create policy "favorites_select_own" on favorites
+  for select using (auth.uid() = user_id);
+
+drop policy if exists "favorites_insert_own" on favorites;
+create policy "favorites_insert_own" on favorites
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "favorites_delete_own" on favorites;
+create policy "favorites_delete_own" on favorites
+  for delete using (auth.uid() = user_id);
+
+create index if not exists idx_favorites_user_id on favorites (user_id);
+
+-- Historia wyszukiwań (VIN-y i zastosowane filtry) — pokazywana w panelu
+-- użytkownika, żeby mógł łatwo wrócić do wcześniejszego szukania.
+create table if not exists search_history (
+  id          bigint generated always as identity primary key,
+  user_id     uuid not null references auth.users (id) on delete cascade,
+  search_type text not null check (search_type in ('vin', 'filters')),
+  query       text,              -- dla search_type='vin': sam numer VIN
+  filters     jsonb,             -- dla search_type='filters': zastosowane filtry
+  created_at  timestamptz not null default now()
+);
+
+alter table search_history enable row level security;
+
+drop policy if exists "search_history_select_own" on search_history;
+create policy "search_history_select_own" on search_history
+  for select using (auth.uid() = user_id);
+
+drop policy if exists "search_history_insert_own" on search_history;
+create policy "search_history_insert_own" on search_history
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "search_history_delete_own" on search_history;
+create policy "search_history_delete_own" on search_history
+  for delete using (auth.uid() = user_id);
+
+create index if not exists idx_search_history_user_id_created_at
+  on search_history (user_id, created_at desc);

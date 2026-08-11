@@ -13,6 +13,7 @@
     "seed-demo": "node --env-file=.env.local scripts/seed-demo-data.js"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.110.9",
     "next": "16.2.12",
     "react": "19.2.4",

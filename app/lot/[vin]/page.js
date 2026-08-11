@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import './lot.css';
 import LotGallery from './LotGallery';
 import ClaimModal from './ClaimModal';
+import AuthWidget from '@/app/AuthWidget';
 import { getCarByVin, getSimilarLots } from '@/lib/queries';
 import { formatPrice, formatOdometer, formatDate } from '@/lib/format';
 import { buildGalleryItems, getPhotoUrls } from '@/lib/gallery';
@@ -151,12 +152,15 @@ export default async function LotPage({ params }) {
         </Link>
       </div>
 
-      {/* TOP BAR (BACK + CLAIM LOT) */}
+      {/* TOP BAR (BACK + KONTO + CLAIM LOT) */}
       <div className="top-bar">
         <Link href="/" className="back-link">
           ← Back to listings
         </Link>
-        <ClaimModal />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <AuthWidget />
+          <ClaimModal />
+        </div>
       </div>
 
       {/* CAR HEADER */}
