@@ -497,8 +497,12 @@ begin
     where_clause := where_clause || ' and vehicle_type = ''Automobile''';
   end if;
 
+  -- "Lowest Price" ignoruje auta poniżej $3000 (rozbite/salvage sztuki za
+  -- grosze zaniżały ten wskaźnik do wartości nieprzydatnych jako punkt
+  -- odniesienia) — filter (where ...) liczy MIN tylko z tego podzbioru,
+  -- max/avg/count nadal liczone ze wszystkich pasujących aut.
   return query execute
-    'select min(purchase_price), max(purchase_price), avg(purchase_price), count(*) from cars where ' || where_clause;
+    'select min(purchase_price) filter (where purchase_price >= 3000), max(purchase_price), avg(purchase_price), count(*) from cars where ' || where_clause;
 end;
 $$;
 

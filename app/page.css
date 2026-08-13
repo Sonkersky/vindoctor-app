@@ -90,6 +90,15 @@
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
+/* Szerszy niż domyślny .btn (padding:11px 16px) — to główne wezwanie do
+   działania na stronie głównej, ma się wyróżniać, nie tylko dorównywać
+   szerokości pola tekstowego. Skopowane tylko do tego formularza, żeby nie
+   ruszać innych przycisków .btn-primary (np. "Apply Filters"). */
+.top-search-form .btn-primary {
+    padding: 14px 40px;
+    font-size: 0.95rem;
+}
+
 .top-search-input:focus {
     border-color: #38bdf8;
     box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
@@ -524,55 +533,84 @@
    aktualnej liczby kolumn). */
 .price-stats-banner {
     grid-column: 1 / -1;
-    display: flex;
-    background-color: rgba(30, 41, 59, 0.6);
-    border: 1px solid #334155;
-    border-radius: 12px;
-    padding: 16px 24px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
     margin-bottom: 4px;
 }
 
+/* Każda pozycja to osobna "karta" z własnym kolorem akcentu (zielony/
+   niebieski/pomarańczowy) zamiast jednego płaskiego paska z separatorami —
+   łatwiej od razu wychwycić wzrokiem, która wartość jest która. */
 .price-stats-item {
-    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    /* Mniej przezroczyste niż karty samochodów (.car-tile to #1e293b w
+       pełni kryjące) — to zdjęcie portu w tle prześwitywało za mocno i
+       obniżało czytelność cen. */
+    background-color: rgba(30, 41, 59, 0.92);
+    border: 1px solid #334155;
+    border-top: 2px solid var(--stats-accent, #334155);
+    border-radius: 12px;
+    padding: 14px 16px;
+}
+
+.price-stats-item-low {
+    --stats-accent: #22c55e;
+}
+
+.price-stats-item-avg {
+    --stats-accent: #38bdf8;
+}
+
+.price-stats-item-high {
+    --stats-accent: #f97316;
+}
+
+.price-stats-icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background-color: color-mix(in srgb, var(--stats-accent, #334155) 18%, transparent);
+    color: var(--stats-accent, #94a3b8);
+}
+
+.price-stats-text {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    position: relative;
-}
-
-.price-stats-item + .price-stats-item::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 1px;
-    height: 32px;
-    background-color: #334155;
-}
-
-.price-stats-item-avg .price-stats-value {
-    color: #38bdf8;
+    gap: 2px;
+    min-width: 0;
 }
 
 .price-stats-label {
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     color: #94a3b8;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     font-weight: 700;
+    white-space: nowrap;
 }
 
 .price-stats-value {
-    font-size: 1.3rem;
+    font-size: 1.25rem;
     font-weight: 800;
-    color: #f8fafc;
+    color: var(--stats-accent, #f8fafc);
+}
+
+@media (max-width: 700px) {
+    .price-stats-banner {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 600px) {
-    .price-stats-banner {
-        padding: 12px 16px;
+    .price-stats-item {
+        padding: 12px 14px;
     }
 
     .price-stats-value {
