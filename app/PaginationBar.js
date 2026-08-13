@@ -24,13 +24,15 @@ function scrollToTop() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// Odtwarza dokładnie tę samą logikę co oryginalny JS: okno 10 numerków stron
-// przesuwające się wraz z bieżącą stroną, Next wyłączony gdy strona nie była pełna.
-export default function PaginationBar({ currentPage, hasNextPage, filtersQueryString }) {
+// Okno numerków stron przesuwające się wraz z bieżącą stroną (maks. 10),
+// ucięte do lastPageInWindow (lib/queries.js) — bez tego przyciski 4-10
+// bywały klikalne, nawet gdy tylu stron wyników w ogóle nie było.
+export default function PaginationBar({ currentPage, hasNextPage, filtersQueryString, lastPageInWindow }) {
   const { t } = useLocale();
-  const windowSize = 10;
   const windowStart = Math.max(1, currentPage - 4);
-  const pageNumbers = Array.from({ length: windowSize }, (_, i) => windowStart + i);
+  const windowEnd = lastPageInWindow ?? windowStart + 9;
+  const pageNumbers = [];
+  for (let n = windowStart; n <= windowEnd; n++) pageNumbers.push(n);
 
   return (
     <div

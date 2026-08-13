@@ -89,7 +89,12 @@ export default async function LotPage({ params }) {
 
   const pill = saleStatusPill(car.sale_status || (car.sale_history[0] && car.sale_history[0].sale_status));
   const isBuyNow = (car.sale_status || '').toLowerCase() === 'sold' && (car.sale_type || '').toLowerCase() === 'buynow';
-  const docDestructive = isDestructiveDocument(car.document);
+  // Sprawdzamy razem document i document_detail — apicar.store często
+  // trzyma ogólny kubełek ("Other") w document, a konkretną, stanową
+  // kategorię tytułu (np. "IN - BILL OF SALE - PARTS ONLY") w
+  // document_detail; samo document potrafi więc wyglądać niewinnie, mimo
+  // że auto realnie nie nadaje się do ponownej rejestracji.
+  const docDestructive = isDestructiveDocument(`${car.document || ''} ${car.document_detail || ''}`);
   const seller = sellerDisplay(car.seller, car.seller_type);
   const extraFields = extraInfoFields(car);
 

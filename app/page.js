@@ -246,7 +246,7 @@ export default async function HomePage({ searchParams }) {
 
   // Statystyki cenowe tylko po wybraniu marki — bez sensu (i bez potrzeby
   // odpytywania bazy) dla domyślnego, niefiltrowanego widoku.
-  const [{ cars, hasNextPage }, makesModels, lotCounts, priceStats, { t }] = await Promise.all([
+  const [{ cars, hasNextPage, lastPageInWindow }, makesModels, lotCounts, priceStats, { t }] = await Promise.all([
     listCars(filters, page),
     getMakesAndModels(),
     getLotCounts(),
@@ -323,7 +323,12 @@ export default async function HomePage({ searchParams }) {
           )}
 
           {cars.length > 0 && (
-            <PaginationBar currentPage={page} hasNextPage={hasNextPage} filtersQueryString={filtersQueryString} />
+            <PaginationBar
+              currentPage={page}
+              hasNextPage={hasNextPage}
+              filtersQueryString={filtersQueryString}
+              lastPageInWindow={lastPageInWindow}
+            />
           )}
         </main>
       </div>
