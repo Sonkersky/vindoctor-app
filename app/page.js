@@ -74,6 +74,48 @@ function IconDocument() {
   );
 }
 
+// Ikonki dla banera "Lowest/Average/Highest Price" — stroke="currentColor",
+// bo każda pozycja ma inny kolor kółka pod spodem (patrz .price-stats-icon-*
+// w page.css), więc kolor ma przejmować z rodzica zamiast być na sztywno.
+const STATS_ICON_PROPS = {
+  width: 18,
+  height: 18,
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 2.3,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+};
+
+function IconArrowDown() {
+  return (
+    <svg {...STATS_ICON_PROPS}>
+      <path d="M12 4v14" />
+      <path d="M6 13l6 6 6-6" />
+    </svg>
+  );
+}
+
+function IconArrowUp() {
+  return (
+    <svg {...STATS_ICON_PROPS}>
+      <path d="M12 20V6" />
+      <path d="M6 11l6-6 6 6" />
+    </svg>
+  );
+}
+
+function IconBars() {
+  return (
+    <svg {...STATS_ICON_PROPS}>
+      <path d="M6 20V11" />
+      <path d="M12 20V4" />
+      <path d="M18 20V15" />
+    </svg>
+  );
+}
+
 function tileStatusPillClass(saleStatus) {
   const s = (saleStatus || '').toLowerCase();
   if (s.includes('not sold')) return 'status-not-sold';
@@ -247,17 +289,26 @@ export default async function HomePage({ searchParams }) {
         <main className="car-grid">
           {priceStats.count > 0 && (
             <div className="price-stats-banner">
-              <div className="price-stats-item">
-                <span className="price-stats-label">{t('low')}</span>
-                <span className="price-stats-value">${Math.round(priceStats.min).toLocaleString('en-US')}</span>
+              <div className="price-stats-item price-stats-item-low">
+                <span className="price-stats-icon"><IconArrowDown /></span>
+                <div className="price-stats-text">
+                  <span className="price-stats-label">{t('low')}</span>
+                  <span className="price-stats-value">${Math.round(priceStats.min).toLocaleString('en-US')}</span>
+                </div>
               </div>
               <div className="price-stats-item price-stats-item-avg">
-                <span className="price-stats-label">{t('average')}</span>
-                <span className="price-stats-value">${Math.round(priceStats.avg).toLocaleString('en-US')}</span>
+                <span className="price-stats-icon"><IconBars /></span>
+                <div className="price-stats-text">
+                  <span className="price-stats-label">{t('average')}</span>
+                  <span className="price-stats-value">${Math.round(priceStats.avg).toLocaleString('en-US')}</span>
+                </div>
               </div>
-              <div className="price-stats-item">
-                <span className="price-stats-label">{t('high')}</span>
-                <span className="price-stats-value">${Math.round(priceStats.max).toLocaleString('en-US')}</span>
+              <div className="price-stats-item price-stats-item-high">
+                <span className="price-stats-icon"><IconArrowUp /></span>
+                <div className="price-stats-text">
+                  <span className="price-stats-label">{t('high')}</span>
+                  <span className="price-stats-value">${Math.round(priceStats.max).toLocaleString('en-US')}</span>
+                </div>
               </div>
             </div>
           )}

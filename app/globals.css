@@ -623,6 +623,9 @@ body::before {
 }
 
 .locale-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     background: none;
     border: none;
     color: #94a3b8;

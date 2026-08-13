@@ -13,7 +13,7 @@ export default function LocaleToggle() {
         onClick={() => setLocale('en')}
         aria-pressed={locale === 'en'}
       >
-        EN
+        <span aria-hidden="true">🇺🇸</span> EN
       </button>
       <span className="locale-sep">/</span>
       <button
@@ -22,7 +22,7 @@ export default function LocaleToggle() {
         onClick={() => setLocale('pl')}
         aria-pressed={locale === 'pl'}
       >
-        PL
+        <span aria-hidden="true">🇵🇱</span> PL
       </button>
     </div>
   );
