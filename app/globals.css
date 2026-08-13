@@ -19,6 +19,33 @@ body {
     flex-direction: column;
 }
 
+/* Tło portu w tle strony (zdjęcie dźwigów, przygaszone i zanikające w dół)
+   — wspólne dla wszystkich stron. Wcześniej zduplikowane osobno w
+   page.css i lot.css; przez to, że Next.js podczas nawigacji klientem
+   (Link/router.push) potrafi mieć chwilowo załadowane CSS poprzedniej
+   strony, dawało to niespójny wygląd na stronach bez własnej definicji
+   (np. /admin/leads — czasem bez tła, czasem z "przeciekniętym" tłem innej
+   strony). Jedna definicja tutaj = zawsze ten sam wygląd, niezależnie od
+   tego, skąd się nawigowało. */
+body::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 600px;
+    background-image: url('https://images.unsplash.com/photo-1590497008432-598f04441de8?q=80&w=4091&auto=format&fit=crop');
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
+    opacity: 0.45;
+    filter: contrast(110%) brightness(90%);
+    -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%);
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%);
+    pointer-events: none;
+    z-index: 0;
+}
+
 .site-footer {
     background-color: #0b1120;
     border-top: 1px solid #1e293b;
@@ -135,62 +162,21 @@ body {
     }
 }
 
-/* ===== KONTO UŻYTKOWNIKA (logowanie/rejestracja/menu) ===== */
+/* ===== KONTO UŻYTKOWNIKA (logowanie/rejestracja) =====
+   Kompaktowe — AuthWidget renderuje się w .top-right-bar obok AccountBar i
+   przełącznika PL/EN (app/layout.js), więc przyciski mają pasować
+   wysokością/rozmiarem czcionki do reszty tamtejszych pigułek. */
 .auth-widget {
     display: flex;
     align-items: center;
-    gap: 10px;
-}
-
-/* Kafelek logowania — ta sama stylistyka co .top-search-section (tło,
-   rozmycie, obramowanie), tylko kompaktowy. Ikonka ma tę samą animację
-   pulsowania co logo (patrz @keyframes authIconPulse — kopia logoPulse
-   z page.css, zduplikowana tu, żeby działała też na podstronie lotu,
-   gdzie page.css się nie ładuje). */
-.auth-tile {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 20px;
-    border-radius: 12px;
-    background-color: rgba(15, 23, 42, 0.85);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(56, 189, 248, 0.25);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    color: #f8fafc;
-    font-weight: 700;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: border-color 0.2s ease;
-    white-space: nowrap;
-}
-
-.auth-tile:hover {
-    border-color: rgba(56, 189, 248, 0.6);
-}
-
-.auth-tile-icon {
-    flex-shrink: 0;
-    animation: authIconPulse 4s infinite ease-in-out;
-}
-
-@keyframes authIconPulse {
-    0%, 85%, 100% {
-        transform: scale(1);
-        filter: drop-shadow(0 0 0 rgba(56, 189, 248, 0));
-    }
-    92% {
-        transform: scale(1.15);
-        filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.8));
-    }
+    gap: 8px;
 }
 
 .auth-btn {
-    padding: 10px 18px;
-    border-radius: 8px;
+    padding: 6px 14px;
+    border-radius: 14px;
     font-weight: 700;
-    font-size: 0.85rem;
+    font-size: 0.78rem;
     cursor: pointer;
     border: 1px solid #334155;
     background-color: rgba(30, 41, 59, 0.7);
@@ -252,17 +238,21 @@ body {
 }
 
 .auth-field input,
-.auth-field select {
+.auth-field select,
+.auth-field textarea {
     padding: 12px 14px;
     border-radius: 8px;
     border: 1px solid #334155;
     background-color: rgba(15, 23, 42, 0.9);
     color: #f8fafc;
     font-size: 0.95rem;
+    font-family: inherit;
+    resize: vertical;
 }
 
 .auth-field input:focus,
-.auth-field select:focus {
+.auth-field select:focus,
+.auth-field textarea:focus {
     outline: none;
     border-color: #38bdf8;
 }
@@ -286,91 +276,380 @@ body {
     line-height: 1.4;
 }
 
-.user-menu {
-    position: relative;
-}
-
-.user-menu-trigger {
+/* ===== ACCOUNT BAR — opcje po zalogowaniu, pigułka obok PL/EN ===== */
+/* Pozycjonowanie na sztywno robi rodzic .top-right-bar (patrz niżej) —
+   ta pigułka sama w sobie jest zwykłym elementem w przepływie flex. */
+.account-bar {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 14px;
-    border-radius: 8px;
+    gap: 4px;
+    background-color: rgba(30, 41, 59, 0.85);
     border: 1px solid #334155;
-    background-color: rgba(30, 41, 59, 0.7);
-    color: #f8fafc;
-    cursor: pointer;
-    font-size: 0.85rem;
+    border-radius: 20px;
+    padding: 6px 8px;
+    backdrop-filter: blur(4px);
+}
+
+/* Ikona + widoczna na stałe nazwa opcji (bez najeżdżania myszą) — poza
+   "Log out", które zostaje samą ikoną w kółku (patrz .account-bar-icon-only
+   niżej). */
+.account-bar-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 14px;
+    border: none;
+    background: none;
+    color: #cbd5e1;
+    text-decoration: none;
+    font-size: 0.78rem;
     font-weight: 600;
-    max-width: 220px;
+    white-space: nowrap;
+    cursor: pointer;
 }
 
-.user-menu-trigger:hover {
-    border-color: #38bdf8;
+.account-bar-btn:hover {
+    background-color: rgba(56, 189, 248, 0.15);
+    color: #f8fafc;
 }
 
-.user-menu-avatar {
+.account-bar-icon-only {
     width: 26px;
     height: 26px;
+    padding: 0;
     border-radius: 50%;
-    background: linear-gradient(135deg, #38bdf8, #0284c7);
-    color: #0f172a;
-    display: flex;
-    align-items: center;
     justify-content: center;
-    font-weight: 800;
-    font-size: 0.8rem;
-    flex-shrink: 0;
 }
 
-.user-menu-email {
+.account-bar-logout:hover {
+    background-color: rgba(239, 68, 68, 0.15);
+}
+
+.account-bar-logout:hover svg {
+    stroke: #f87171;
+}
+
+/* Kłódka przy pozycji menu niedostępnej dla gościa — tooltip to ten sam
+   .account-bar-tooltip co przy "Log out" (patrz niżej), więc odziedzicza
+   pozycjonowanie względem .account-bar-btn (rodzic ma position:relative). */
+.account-bar-lock {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 2px;
+}
+
+.account-bar-divider {
+    width: 1px;
+    height: 18px;
+    background-color: #334155;
+    margin: 0 2px;
+}
+
+/* Podpis pod ikoną — zostaje tylko przy "Log out" (jedynej ikonie bez
+   widocznej nazwy), pokazuje się po najechaniu. Te same proporcje co
+   .seller-tooltip-popup na stronie lota (lot.css), ale pod ikoną (nie nad),
+   bo pigułka stoi na samej górze strony. */
+.account-bar-tooltip {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background-color: rgba(30, 41, 59, 0.95);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    color: #e2e8f0;
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+    padding: 5px 10px;
+    border-radius: 6px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    transform: translateY(-4px);
+    pointer-events: none;
+    z-index: 1200;
+}
+
+.account-bar-btn:hover .account-bar-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+/* ===== PANEL "MOJE ULUBIONE" (FavoritesPanel) ===== */
+.favorites-panel-content {
+    max-width: 640px;
+    max-height: 80vh;
+}
+
+.favorites-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.favorites-panel-header h3 {
+    font-size: 1.1rem;
+}
+
+.favorites-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    max-height: 60vh;
+    padding-right: 4px;
+}
+
+.favorites-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background-color: rgba(15, 23, 42, 0.6);
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 10px;
+}
+
+.favorites-item-image,
+.history-item-image {
+    position: relative;
+    flex-shrink: 0;
+    width: 84px;
+    height: 64px;
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: #0f172a;
+    display: block;
+}
+
+.favorites-item-image img,
+.history-item-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.favorites-item-noimage {
+    width: 100%;
+    height: 100%;
+    background-color: #1e293b;
+}
+
+/* Samodzielny styl odznaki aukcji w panelu — nie polega na .auction-badge
+   z page.css/lot.css, bo FavoritesPanel (portal do document.body) może być
+   otwarty zarówno ze strony głównej, jak i podstrony lota, gdzie żaden z
+   tamtych plików CSS może nie być załadowany. */
+.favorites-item-image .auction-badge,
+.history-item-image .auction-badge {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    font-size: 0.55rem;
+    font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+}
+
+.favorites-item-image .auction-badge.copart,
+.history-item-image .auction-badge.copart { background-color: #0053a0; color: #ffffff; }
+.favorites-item-image .auction-badge.iaai,
+.history-item-image .auction-badge.iaai { background-color: #dc2626; color: #ffffff; }
+
+.favorites-item-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.favorites-item-title {
+    color: #f8fafc;
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-decoration: none;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.user-menu-dropdown {
-    position: absolute;
-    top: calc(100% + 8px);
-    right: 0;
-    min-width: 220px;
-    background-color: #1e293b;
+.favorites-item-title:hover {
+    color: #38bdf8;
+}
+
+.favorites-item-meta {
+    color: #94a3b8;
+    font-size: 0.8rem;
+}
+
+.favorites-item-remove {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
     border: 1px solid #334155;
-    border-radius: 10px;
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
-    padding: 8px;
-    z-index: 50;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.user-menu-item {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 10px 12px;
-    border-radius: 6px;
-    border: none;
     background: none;
-    color: #cbd5e1;
-    font-size: 0.9rem;
-    font-weight: 600;
+    color: #94a3b8;
     cursor: pointer;
+    font-size: 0.85rem;
 }
 
-.user-menu-item:hover {
-    background-color: #334155;
-    color: #ffffff;
-}
-
-.user-menu-item.danger:hover {
-    background-color: rgba(239, 68, 68, 0.15);
+.favorites-item-remove:hover {
+    border-color: #f87171;
     color: #f87171;
 }
 
-.user-menu-divider {
-    height: 1px;
-    background-color: #334155;
-    margin: 4px 0;
+/* ===== PANEL "MY SETTINGS" (MySettingsPanel) ===== */
+.settings-field {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.settings-field label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.settings-unit-toggle {
+    display: flex;
+    gap: 8px;
+}
+
+.settings-unit-btn {
+    flex: 1;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid #334155;
+    background-color: rgba(15, 23, 42, 0.6);
+    color: #cbd5e1;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.settings-unit-btn:hover {
+    border-color: #38bdf8;
+    color: #ffffff;
+}
+
+.settings-unit-btn.active {
+    background: linear-gradient(135deg, #38bdf8, #0284c7);
+    color: #0f172a;
+    border-color: transparent;
+}
+
+.settings-hint {
+    color: #64748b;
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+/* ===== PANEL "SEARCH HISTORY" (SearchHistoryPanel) ===== */
+.history-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background-color: rgba(15, 23, 42, 0.6);
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+
+.history-item-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.history-item-title {
+    color: #f8fafc;
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.history-item-title:hover {
+    color: #38bdf8;
+}
+
+.history-item-meta {
+    color: #94a3b8;
+    font-size: 0.8rem;
+}
+
+/* Prawy górny róg, na sztywno, nad wszystkimi stronami (renderowane raz w
+   app/layout.js): AccountBar (opcje po zalogowaniu, patrz wyżej) i obok
+   niego przełącznik PL/EN — obie pigułki w jednym rzędzie flex, więc
+   trzymają się siebie niezależnie od tego, czy AccountBar jest w ogóle
+   wyrenderowany (gość vs zalogowany). */
+.top-right-bar {
+    position: fixed;
+    top: 14px;
+    /* Domyślnie 20px od krawędzi viewportu; na stronie głównej
+       HomeGridAligner.js nadpisuje --top-bar-right tak, żeby menu kończyło
+       się dokładnie nad prawą krawędzią ostatniego kafelka (który jest teraz
+       węższy niż kontener, patrz .car-grid w page.css). */
+    right: var(--top-bar-right, 20px);
+    z-index: 1100;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.locale-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background-color: rgba(30, 41, 59, 0.85);
+    border: 1px solid #334155;
+    border-radius: 20px;
+    padding: 4px 10px;
+    backdrop-filter: blur(4px);
+}
+
+.locale-btn {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    padding: 2px 4px;
+}
+
+.locale-btn:hover {
+    color: #e2e8f0;
+}
+
+.locale-btn-active {
+    color: #38bdf8;
+}
+
+.locale-sep {
+    color: #475569;
+    font-size: 0.75rem;
+}
+
+@media (max-width: 600px) {
+    .top-right-bar {
+        top: 10px;
+        right: 10px;
+        gap: 6px;
+    }
 }

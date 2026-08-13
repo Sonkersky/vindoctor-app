@@ -9,6 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "backfill": "node --env-file=.env.local scripts/backfill.js",
+    "backfill:lot-id": "node --env-file=.env.local scripts/backfill-lot-id.js",
+    "import:calculator-data": "node --env-file=.env.local scripts/import-calculator-data.js",
     "import-daily": "node --env-file=.env.local scripts/import-daily.js",
     "seed-demo": "node --env-file=.env.local scripts/seed-demo-data.js"
   },
@@ -16,6 +18,7 @@
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.110.9",
     "next": "16.2.12",
+    "nodemailer": "^9.0.5",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "server-only": "^0.0.1"

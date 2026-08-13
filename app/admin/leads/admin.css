@@ -1,0 +1,117 @@
+.admin-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    color: #f8fafc;
+    /* Bez tego tło portu (body::before w globals.css — position:absolute,
+       z-index:0) renderowało się NAD zwykłą, niepozycjonowaną treścią tej
+       strony (pozycjonowane elementy, nawet z z-index:0, zawsze są nad
+       niepozycjonowanymi, niezależnie od kolejności w DOM) — dokładnie ten
+       sam patent co .container (page.css) i .lot-page-container (lot.css). */
+    position: relative;
+    z-index: 1;
+}
+
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 28px;
+}
+
+.admin-header h1 {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #ffffff;
+}
+
+.admin-subtitle {
+    color: #94a3b8;
+    font-size: 0.9rem;
+    margin-top: 4px;
+}
+
+.admin-back-link {
+    color: #38bdf8;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.admin-back-link:hover {
+    text-decoration: underline;
+}
+
+.admin-error {
+    background-color: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #f87171;
+    padding: 14px 18px;
+    border-radius: 10px;
+}
+
+.admin-empty {
+    color: #cbd5e1;
+    background-color: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 30px;
+    text-align: center;
+}
+
+.admin-table-wrap {
+    background-color: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    overflow-x: auto;
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+.admin-table th {
+    text-align: left;
+    padding: 14px 16px;
+    color: #cbd5e1;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+    border-bottom: 1px solid #334155;
+    white-space: nowrap;
+}
+
+.admin-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+    color: #e2e8f0;
+    vertical-align: top;
+}
+
+.admin-table tr:last-child td {
+    border-bottom: none;
+}
+
+.admin-nowrap {
+    white-space: nowrap;
+}
+
+.admin-vehicle-link {
+    color: #38bdf8;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.admin-vehicle-link:hover {
+    text-decoration: underline;
+}
+
+.admin-message {
+    max-width: 320px;
+    white-space: pre-wrap;
+}

@@ -325,3 +325,218 @@ create policy "search_history_delete_own" on search_history
 
 create index if not exists idx_search_history_user_id_created_at
   on search_history (user_id, created_at desc);
+
+-- Wyszukiwanie po numerze lotu (obok VIN-u) — apicar.store zwraca go jako
+-- lot_id, dotąd zapisywany tylko wewnątrz raw_json. Dodajemy osobną kolumnę
+-- + indeks, żeby wyszukiwanie było szybkie (nowe wiersze wypełnia lib/sync.js
+-- na bieżąco). UWAGA: uzupełnienie lot_id dla JUŻ zapisanych wierszy celowo
+-- NIE jest tu jednym dużym UPDATE-em — przy 140k+ wierszach taki UPDATE
+-- (JSONB extraction + regex na każdym wierszu) przekracza upstream timeout
+-- edytora SQL w Supabase. Zamiast tego: `npm run backfill:lot-id`
+-- (scripts/backfill-lot-id.js) — robi to samo w małych, bezpiecznych paczkach.
+alter table cars add column if not exists lot_id bigint;
+create index if not exists idx_cars_lot_id on cars (lot_id);
+
+-- ===== KALKULATOR KOSZTÓW SPROWADZENIA "POD DOM" =====
+-- Dane wyciągnięte z arkusza Excel klienta (Kalkulator_Wojtek.xlsx) —
+-- opłaty aukcyjne Copart/IAAI wg przedziału ceny licytacji, i stawki
+-- transportu lądowego + frachtu morskiego per plac (yard). Import:
+-- `npm run import:calculator-data` (scripts/import-calculator-data.js).
+
+create table if not exists calc_auction_fees (
+  id                bigint generated always as identity primary key,
+  auction           text not null check (auction in ('copart', 'iaai')),
+  min_price         numeric not null,
+  max_price         numeric not null,
+  buyer_fee         numeric,          -- null tylko dla najwyższego przedziału (patrz percentage_rate)
+  bid_fee           numeric not null default 0,
+  service_fee       numeric not null default 0,
+  title_fee         numeric not null default 0,
+  environmental_fee numeric not null default 0,
+  release_fee       numeric not null default 0,
+  total_fee         numeric,          -- suma opłat dla tego przedziału (null dla najwyższego przedziału)
+  -- Najwyższy przedział (>=15000$ w oryginalnym arkuszu) liczy się inaczej:
+  -- opłata = percentage_rate * kwota_licytacji + flat_addon (zamiast stałej
+  -- kwoty z total_fee).
+  percentage_rate   numeric,
+  flat_addon        numeric
+);
+
+create index if not exists idx_calc_auction_fees_lookup
+  on calc_auction_fees (auction, min_price, max_price);
+
+create table if not exists calc_shipping_routes (
+  id                          bigint generated always as identity primary key,
+  auction                     text not null check (auction in ('copart', 'iaai')),
+  yard_name                   text not null,    -- oryginalna nazwa placu, np. "ABILENE - Texas"
+  yard_city_norm              text not null,    -- znormalizowane (UPPER, trim) miasto do dopasowania z cars.location
+  port_state                  text,             -- stan portu eksportowego, do którego jedzie transport lądowy
+  land_transport_cost         numeric not null default 0,
+  land_transport_security_fee numeric not null default 0,
+  freight_suv_1_3             numeric not null default 0,
+  freight_car_1_4             numeric not null default 0,
+  freight_car_1_2             numeric not null default 0,
+  freight_moto                numeric not null default 0,
+  freight_quad                numeric not null default 0,
+  freight_security_fee        numeric not null default 0
+);
+
+create index if not exists idx_calc_shipping_routes_lookup
+  on calc_shipping_routes (auction, yard_city_norm);
+
+-- Publiczny odczyt — kalkulator liczy po stronie klienta (przeglądarki),
+-- więc te dwie tabele muszą być czytelne dla anon, tak jak cars/sale_history.
+grant select on calc_auction_fees to anon, authenticated;
+grant select on calc_shipping_routes to anon, authenticated;
+
+alter table calc_auction_fees enable row level security;
+alter table calc_shipping_routes enable row level security;
+
+drop policy if exists "calc_auction_fees_public_read" on calc_auction_fees;
+create policy "calc_auction_fees_public_read" on calc_auction_fees
+  for select using (true);
+
+drop policy if exists "calc_shipping_routes_public_read" on calc_shipping_routes;
+create policy "calc_shipping_routes_public_read" on calc_shipping_routes
+  for select using (true);
+
+-- Statystyki cenowe (najniższa/najwyższa/średnia) nad kafelkami po
+-- przefiltrowaniu — liczone po CAŁYM przefiltrowanym zbiorze, nie tylko
+-- widocznej stronie, więc musi to być agregat SQL (nie da się tego policzyć
+-- po stronie klienta bez ściągania wszystkich pasujących wierszy).
+--
+-- WAŻNE — dlaczego dynamiczny SQL (EXECUTE), nie zwykłe
+-- "(p_make is null or make = p_make)": ten drugi wzorzec wygenerował
+-- 20-30-sekundowe zapytania i statement timeout (57014) na żywo — planner
+-- Postgresa dla takiego warunku musi założyć, że KAŻDY wiersz może pasować
+-- (bo parametr MÓGŁBY być null), więc odpada od indeksu
+-- idx_cars_sale_status_vehicle_type_make_model i robi pełny skan 140k+
+-- wierszy. Budując WHERE dynamicznie, do zapytania trafiają tylko warunki,
+-- które faktycznie są aktywne — planner wtedy normalnie korzysta z indeksu.
+create or replace function get_price_stats(
+  p_site text default null,
+  p_make text default null,
+  p_model text default null,
+  p_trim text default null,
+  p_damage text default null,
+  p_status text default null,
+  p_year_from int default null,
+  p_year_to int default null,
+  p_mileage_from numeric default null,
+  p_mileage_to numeric default null,
+  p_seller_category text default null,
+  p_engine_size_from numeric default null,
+  p_engine_size_to numeric default null,
+  p_fuel text default null,
+  p_cylinders text default null,
+  p_vehicle_type text default null
+)
+returns table(min_price numeric, max_price numeric, avg_price numeric, sample_count bigint)
+language plpgsql
+stable
+as $$
+declare
+  where_clause text := 'sale_status = ''Sold'' and purchase_price is not null';
+  base_site_value text;
+begin
+  if p_site is not null then
+    base_site_value := case p_site when '1' then 'copart' when '2' then 'iaai' else null end;
+    if base_site_value is not null then
+      where_clause := where_clause || format(' and base_site = %L', base_site_value);
+    end if;
+  end if;
+  if p_make is not null then
+    where_clause := where_clause || format(' and make = %L', p_make);
+  end if;
+  if p_model is not null then
+    where_clause := where_clause || format(' and model = %L', p_model);
+  end if;
+  if p_trim is not null then
+    where_clause := where_clause || format(' and series = %L', p_trim);
+  end if;
+  if p_damage is not null then
+    where_clause := where_clause || format(' and damage_pr = %L', p_damage);
+  end if;
+  if p_status is not null then
+    where_clause := where_clause || format(' and status = %L', p_status);
+  end if;
+  if p_year_from is not null then
+    where_clause := where_clause || format(' and year >= %L', p_year_from);
+  end if;
+  if p_year_to is not null then
+    where_clause := where_clause || format(' and year <= %L', p_year_to);
+  end if;
+  if p_mileage_from is not null then
+    where_clause := where_clause || format(' and odometer >= %L', p_mileage_from);
+  end if;
+  if p_mileage_to is not null then
+    where_clause := where_clause || format(' and odometer <= %L', p_mileage_to);
+  end if;
+  if p_seller_category = 'insurance' then
+    where_clause := where_clause || ' and seller_type ilike ''insurance''';
+  elsif p_seller_category = 'non-insurance' then
+    where_clause := where_clause || ' and (seller_type is null or seller_type <> ''insurance'')';
+  end if;
+  if p_engine_size_from is not null then
+    where_clause := where_clause || format(' and engine_size >= %L', p_engine_size_from);
+  end if;
+  if p_engine_size_to is not null then
+    where_clause := where_clause || format(' and engine_size <= %L', p_engine_size_to);
+  end if;
+  if p_fuel is not null then
+    where_clause := where_clause || format(' and fuel = %L', p_fuel);
+  end if;
+  if p_cylinders is not null then
+    where_clause := where_clause || format(' and cylinders = %L', p_cylinders);
+  end if;
+  if p_vehicle_type = 'all' then
+    -- brak warunku — wszystkie typy pojazdów
+  elsif p_vehicle_type is not null then
+    where_clause := where_clause || format(' and vehicle_type = %L', p_vehicle_type);
+  else
+    where_clause := where_clause || ' and vehicle_type = ''Automobile''';
+  end if;
+
+  return query execute
+    'select min(purchase_price), max(purchase_price), avg(purchase_price), count(*) from cars where ' || where_clause;
+end;
+$$;
+
+grant execute on function get_price_stats to anon, authenticated;
+
+-- ===== LEADY ("Buy This Car" — zgłoszenia zainteresowania autem) =====
+-- Flaga admina MUSI powstać PRZED policy niżej, która się do niej odwołuje
+-- (inaczej: "column is_admin does not exist" — dokładnie ten błąd, na który
+-- trafiliśmy przy pierwszym uruchomieniu tego bloku).
+alter table profiles add column if not exists is_admin boolean not null default false;
+
+-- Zapisywane WYŁĄCZNIE przez server-side API route (app/api/leads/route.js)
+-- kluczem service-role — stąd brak grant/RLS insert dla anon: formularz na
+-- stronie nie pisze do tabeli bezpośrednio, tylko przez nasz endpoint (który
+-- przy okazji wysyła mailowe powiadomienie), więc nie trzeba otwierać
+-- zapisu wprost z przeglądarki.
+create table if not exists leads (
+  id         bigint generated always as identity primary key,
+  car_vin    text not null references cars (vin) on delete cascade,
+  name       text not null,
+  phone      text not null,
+  email      text,
+  message    text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_leads_car_vin on leads (car_vin);
+create index if not exists idx_leads_created_at on leads (created_at desc);
+
+alter table leads enable row level security;
+
+-- Tylko konta z profiles.is_admin = true mogą CZYTAĆ leady (panel
+-- /admin/leads). Zapis idzie service-role kluczem z API route, więc nie
+-- omija RLS przez przypadek — RLS i tak jest tu drugą warstwą zabezpieczeń.
+drop policy if exists "leads_select_admin_only" on leads;
+create policy "leads_select_admin_only" on leads
+  for select using (
+    exists (select 1 from profiles where id = auth.uid() and is_admin = true)
+  );
+
+grant select on leads to authenticated;

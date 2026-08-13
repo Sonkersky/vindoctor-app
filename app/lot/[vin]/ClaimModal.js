@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useLocale } from '@/app/i18n/LocaleContext';
 
 export default function ClaimModal() {
+  const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const [accepted, setAccepted] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -30,24 +32,21 @@ export default function ClaimModal() {
   }
 
   function handleNextStep() {
-    alert('Proceeding to the next step of claiming the lot.');
+    alert(t('claimNextStepAlert'));
     setOpen(false);
   }
 
   const modal = (
     <div className={`modal-overlay ${open ? 'active' : ''}`} onClick={handleOverlayClick}>
         <div className="modal-content">
-          <div className="modal-text">
-            We do respect privacy rights of every person. Therefore if you do not want to show the lot you have
-            purchased on our website, you can hide it.
-          </div>
+          <div className="modal-text">{t('claimPrivacyText')}</div>
 
-          <div className="modal-warning-title">PLEASE BE AWARE THAT IT IS PROHIBITED TO:</div>
+          <div className="modal-warning-title">{t('claimWarningTitle')}</div>
 
           <ul className="modal-list">
-            <li>Hide lot if you want to avoid the right tax calculation;</li>
-            <li>Hide lot for hiding damage and odometer information from the future buyers;</li>
-            <li>Hide lot for misinformation, misrepresentation, fraud or other illegal activity;</li>
+            <li>{t('claimListItem1')}</li>
+            <li>{t('claimListItem2')}</li>
+            <li>{t('claimListItem3')}</li>
           </ul>
 
           <div className="modal-checkbox-group">
@@ -57,19 +56,19 @@ export default function ClaimModal() {
               checked={accepted}
               onChange={(e) => setAccepted(e.target.checked)}
             />
-            <label htmlFor="acceptCheckbox">I have read and accept the limitations stated above</label>
+            <label htmlFor="acceptCheckbox">{t('claimCheckboxLabel')}</label>
           </div>
 
           <div className="modal-actions">
             <button className="modal-btn modal-btn-secondary" onClick={() => setOpen(false)}>
-              Cancel
+              {t('cancel')}
             </button>
             <button
               className={`modal-btn modal-btn-primary ${accepted ? '' : 'disabled'}`}
               onClick={handleNextStep}
               disabled={!accepted}
             >
-              Next step
+              {t('nextStep')}
             </button>
           </div>
         </div>
@@ -79,7 +78,7 @@ export default function ClaimModal() {
   return (
     <>
       <button className="claim-btn" onClick={openModal}>
-        Claim This Lot
+        {t('claimThisLot')}
       </button>
       {mounted ? createPortal(modal, document.body) : null}
     </>
