@@ -4,10 +4,14 @@ import { notFound } from 'next/navigation';
 import './lot.css';
 import LotGallery from './LotGallery';
 import ClaimModal from './ClaimModal';
+import BuyLeadModal from './BuyLeadModal';
+import MileageValue from '@/app/MileageValue';
+import LandingCostCalculator from '@/app/LandingCostCalculator';
 import { getCarByVin, getSimilarLots } from '@/lib/queries';
 import { formatPrice, formatOdometer, formatDate } from '@/lib/format';
 import { buildGalleryItems, getPhotoUrls } from '@/lib/gallery';
 import { isDestructiveDocument, sellerDisplay, saleStatusPill, extraInfoFields } from '@/lib/lotHelpers';
+import { getServerTranslator } from '@/lib/i18n/server';
 
 // Ukryte na razie: apicar.store nie zwraca danych sale_history (sprawdzone
 // bezpośrednio w API — puste dla każdego testowanego VIN-u), więc sekcja
@@ -74,7 +78,7 @@ function similarLotCard(car) {
 
 export default async function LotPage({ params }) {
   const { vin } = await params;
-  const car = await getCarByVin(vin);
+  const [car, { t }] = await Promise.all([getCarByVin(vin), getServerTranslator()]);
 
   if (!car) {
     notFound();
@@ -89,12 +93,6 @@ export default async function LotPage({ params }) {
   const seller = sellerDisplay(car.seller, car.seller_type);
   const extraFields = extraInfoFields(car);
 
-  const odometerText =
-    car.odometer != null
-      ? `${Number(car.odometer).toLocaleString('en-US')} ${car.odobrand ? ` (${car.odobrand.toUpperCase()})` : ''}`
-      : 'N/A';
-  const odometerUnit = car.odometer_index || 'mi';
-
   const galleryItems = buildGalleryItems(car);
   const photoUrls = getPhotoUrls(car);
 
@@ -103,11 +101,22 @@ export default async function LotPage({ params }) {
   // czy w wynikach pokaże się jakiś "rich result". Celowo NIE twierdzimy,
   // że auto jest dostępne do kupienia (availability: SoldOut) — to
   // zakończona aukcja, nie aktualna oferta, więc "InStock" byłoby
-  // wprowadzające w błąd.
+  // wprowadzające w błąd. Z tego samego powodu celowo NIE dodajemy
+  // aggregateRating/review/hasMerchantReturnPolicy/shippingDetails, mimo że
+  // Google Search Console zgłasza ich brak jako "problem niekrytyczny" —
+  // to pola dla prawdziwych sklepów z realną polityką zwrotów/wysyłki i
+  // ocenami klientów; my ich nie mamy, więc wymyślanie ich treści byłoby
+  // wprowadzającymi w błąd danymi strukturalnymi (i ryzykiem manual action
+  // od Google). "description" jest jednak prawdziwe i łatwe do dodania.
+  const jsonLdDescription =
+    `${title} — VIN ${car.vin}. ${car.sale_status || 'Auction'} at ${site === 'iaai' ? 'IAAI' : 'Copart'} for ` +
+    `${formatPrice(car)}. Odometer: ${formatOdometer(car)}. Damage: ${car.damage_pr || 'N/A'}.`;
+
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Vehicle',
     name: title,
+    description: jsonLdDescription,
     vehicleIdentificationNumber: car.vin,
     ...(car.make ? { brand: { '@type': 'Brand', name: car.make } } : {}),
     ...(car.model ? { model: car.model } : {}),
@@ -151,24 +160,21 @@ export default async function LotPage({ params }) {
         </Link>
       </div>
 
-      {/* TOP BAR (BACK + CLAIM LOT) */}
+      {/* TOP BAR (BACK) */}
       <div className="top-bar">
         <Link href="/" className="back-link">
-          ← Back to listings
+          {t('backToListings')}
         </Link>
-        <ClaimModal />
       </div>
 
       {/* CAR HEADER */}
       <div className="car-header">
-        <div>
-          <h1 className="car-title-main">{title}</h1>
-          <div className="vin-row">
-            <div className="vin-pill">VIN: {car.vin}</div>
-            <span className={`auction-badge ${site}`}>{site.toUpperCase()}</span>
-            <span className={pill.className}>{pill.text}</span>
-            {isBuyNow && <span className="buynow-badge">⚡ Sold by BUY NOW</span>}
-          </div>
+        <h1 className="car-title-main">{title}</h1>
+        <div className="vin-row">
+          <div className="vin-pill">VIN: {car.vin}</div>
+          <span className={`auction-badge ${site}`}>{site.toUpperCase()}</span>
+          <span className={pill.className}>{pill.text}</span>
+          {isBuyNow && <span className="buynow-badge">⚡ Sold by BUY NOW</span>}
         </div>
       </div>
 
@@ -178,57 +184,64 @@ export default async function LotPage({ params }) {
 
         {/* PRICE & SPECS */}
         <div className="info-section">
+          <ClaimModal />
+
           <div className="price-box">
             <div className="price-box-top">
               <div className="label-row">
-                <div className="label">FINAL BID</div>
+                <div className="label">{t('finalBid')}</div>
               </div>
             </div>
             <div className="amount">{formatPrice(car)}</div>
           </div>
 
+          <BuyLeadModal car={car} />
+
+          <LandingCostCalculator car={car} />
+
           <div className="specs-card">
-            <h3>Vehicle Specifications</h3>
+            <h3>{t('vehicleSpecifications')}</h3>
             <div className="specs-list">
               <div className="spec-item">
-                <span className="spec-label">Location</span>
+                <span className="spec-label">{t('location')}</span>
                 <span className="spec-value">{car.location || car.state || 'N/A'}</span>
               </div>
               <div className="spec-item">
-                <span className="spec-label">Sale Date</span>
+                <span className="spec-label">{t('saleDate')}</span>
                 <span className="spec-value">{formatDate(car.sale_date)}</span>
               </div>
               <div className="spec-item">
-                <span className="spec-label">Engine Status</span>
+                <span className="spec-label">{t('engineStatus')}</span>
                 <span className="spec-value">{car.status || 'N/A'}</span>
               </div>
               <div className="spec-item">
-                <span className="spec-label">Primary Damage</span>
+                <span className="spec-label">{t('primaryDamage')}</span>
                 <span className="spec-value">{car.damage_pr || 'N/A'}</span>
               </div>
               <div className="spec-item">
-                <span className="spec-label">Sale Document</span>
+                <span className="spec-label">{t('saleDocument')}</span>
                 <span className={`spec-value ${docDestructive ? 'doc-destructive' : ''}`}>{car.document || 'N/A'}</span>
               </div>
               <div className="spec-item">
-                <span className="spec-label">Odometer</span>
+                <span className="spec-label">{t('odometer')}</span>
                 <span className="spec-value">
-                  {car.odometer != null ? `${Number(car.odometer).toLocaleString('en-US')} ${odometerUnit}${car.odobrand ? ` (${car.odobrand.toUpperCase()})` : ''}` : 'N/A'}
+                  <MileageValue
+                    odometer={car.odometer}
+                    unit={car.odometer_index}
+                    suffix={car.odobrand ? ` (${car.odobrand.toUpperCase()})` : ''}
+                  />
                 </span>
               </div>
               <div className="spec-item">
-                <span className="spec-label">Transmission</span>
+                <span className="spec-label">{t('transmission')}</span>
                 <span className="spec-value">{car.transmission || 'N/A'}</span>
               </div>
               <div className="spec-item">
-                <span className="spec-label">Seller</span>
+                <span className="spec-label">{t('sellerLabel')}</span>
                 {seller.showTooltip ? (
                   <span className={`spec-value ${seller.className} seller-tooltip`}>
                     {seller.text}
-                    <span className="seller-tooltip-popup">
-                      The seller&apos;s reliability is uncertain. We recommend exercising caution before making a
-                      purchase.
-                    </span>
+                    <span className="seller-tooltip-popup">{t('sellerTooltipWarning')}</span>
                   </span>
                 ) : (
                   <span className={`spec-value ${seller.className}`}>{seller.text}</span>
@@ -239,7 +252,7 @@ export default async function LotPage({ params }) {
 
           {extraFields.length > 0 && (
             <div className="specs-card">
-              <h3>Additional Vehicle Info</h3>
+              <h3>{t('additionalVehicleInfo')}</h3>
               <div className="specs-list">
                 {extraFields.map((f) => (
                   <div className="spec-item" key={f.label}>
@@ -257,25 +270,25 @@ export default async function LotPage({ params }) {
       {SHOW_SALES_HISTORY && (
         <div className="history-section">
           <div className="history-title">
-            🕒 Sales History (VIN History)
-            <span className="history-badge-count">Records found: {car.sale_history.length}</span>
+            {t('salesHistoryTitle')}
+            <span className="history-badge-count">{t('recordsFound')} {car.sale_history.length}</span>
           </div>
 
           <div className="history-table-wrapper">
             <table className="history-table">
               <thead>
                 <tr>
-                  <th>Auction Date</th>
-                  <th>Auction House</th>
-                  <th>Status</th>
-                  <th>Final Price</th>
+                  <th>{t('auctionDate')}</th>
+                  <th>{t('auctionHouse')}</th>
+                  <th>{t('status')}</th>
+                  <th>{t('finalPrice')}</th>
                 </tr>
               </thead>
               <tbody>
                 {car.sale_history.length === 0 ? (
                   <tr>
                     <td colSpan={4} style={{ textAlign: 'center', color: '#64748b' }}>
-                      No previous sale records found.
+                      {t('noSalesRecords')}
                     </td>
                   </tr>
                 ) : (
@@ -297,7 +310,7 @@ export default async function LotPage({ params }) {
       {/* SIMILAR LOTS */}
       {similarLots.length > 0 && (
         <div className="similar-lots-section">
-          <div className="similar-lots-title">🚘 Similar Lots</div>
+          <div className="similar-lots-title">{t('similarLots')}</div>
           <div className="similar-lots-grid">{similarLots.map(similarLotCard)}</div>
         </div>
       )}
@@ -312,9 +325,9 @@ export default async function LotPage({ params }) {
               <img src="/logo_2.png" alt="DOCTOR.VIN Logo" className="footer-logo" />
             </Link>
             <p className="footer-text">
-              Got any questions?
+              {t('footerContact')}
               <br />
-              Feel free to contact
+              {t('footerContact2')}
               <br />
               <a href="mailto:contact@doctor.vin" className="footer-email">
                 contact@doctor.vin
@@ -323,22 +336,22 @@ export default async function LotPage({ params }) {
           </div>
 
           <div className="footer-col">
-            <h4 className="footer-heading">Information</h4>
+            <h4 className="footer-heading">{t('information')}</h4>
             <ul className="footer-links">
               <li>
-                <a href="#">Terms &amp; Conditions</a>
+                <a href="#">{t('termsConditions')}</a>
               </li>
               <li>
-                <a href="#">Privacy Policy</a>
+                <a href="#">{t('privacyPolicy')}</a>
               </li>
               <li>
-                <a href="#">VIN Lookup FAQ</a>
+                <a href="#">{t('vinFaq')}</a>
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="footer-bottom">Ⓒ 2026 VINDOCTOR. All rights reserved</div>
+        <div className="footer-bottom">Ⓒ 2026 VINDOCTOR. {t('footerRights')}</div>
       </footer>
     </>
   );

@@ -1,7 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
+import { useFavorites } from './FavoritesContext';
+import { useLocale } from './i18n/LocaleContext';
 
 const DAMAGE_OPTIONS = [
   ['Front End', 'Front End'],
@@ -35,10 +38,14 @@ const ENGINE_SIZE_MAX = 10;
 
 export default function FilterSidebar({ makesModels, initialFilters }) {
   const router = useRouter();
+  const { user } = useFavorites();
+  const { t } = useLocale();
 
   const [auction, setAuction] = useState(initialFilters.site || '');
   const [make, setMake] = useState(initialFilters.make || '');
   const [model, setModel] = useState(initialFilters.model || '');
+  const [trim, setTrim] = useState(initialFilters.trim || '');
+  const [trimOptions, setTrimOptions] = useState([]);
   const [damage, setDamage] = useState(initialFilters.damage || '');
   const [status, setStatus] = useState(initialFilters.status || '');
   const [sellerCategory, setSellerCategory] = useState(initialFilters.sellerCategory || '');
@@ -79,7 +86,44 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
   function handleMakeChange(e) {
     setMake(e.target.value);
     setModel('');
+    setTrim('');
   }
+
+  function handleModelChange(e) {
+    setModel(e.target.value);
+    setTrim('');
+  }
+
+  // Trim (kolumna "series" w bazie, np. Limited/Select/Touring) zależy od
+  // konkretnej marki+modelu — dociągane na żądanie zamiast trzymane w
+  // makesModels (kombinacji make+model+trim byłoby zbyt dużo, żeby ładować
+  // to z góry na każde wejście na stronę).
+  useEffect(() => {
+    if (!make || !model) {
+      setTrimOptions([]);
+      return;
+    }
+    let cancelled = false;
+    const supabase = createClient();
+    supabase
+      .from('cars')
+      .select('series')
+      .eq('sale_status', 'Sold')
+      .eq('make', make)
+      .eq('model', model)
+      .not('series', 'is', null)
+      .limit(1000)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const unique = [...new Set((data || []).map((r) => r.series).filter(Boolean))].sort((a, b) =>
+          a.localeCompare(b)
+        );
+        setTrimOptions(unique);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [make, model]);
 
   function handleYearFromChange(e) {
     const v = Math.min(Number(e.target.value), yearTo);
@@ -111,6 +155,7 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
     if (auction) params.set('site', auction);
     if (make) params.set('make', make);
     if (model) params.set('model', model);
+    if (trim) params.set('trim', trim);
     if (damage) params.set('damage', damage);
     if (status) params.set('status', status);
     if (sellerCategory) params.set('sellerCategory', sellerCategory);
@@ -133,6 +178,18 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
 
   function applyFilters() {
     const params = buildParams({ resetPage: true });
+
+    // Logujemy tylko realne wyszukiwania (co najmniej jeden filtr) — kliknięcie
+    // "Apply Filters" bez żadnych ustawionych filtrów to w praktyce "pokaż
+    // wszystko", nie jest warte zapamiętania w historii.
+    if (user && params.toString()) {
+      const supabase = createClient();
+      supabase
+        .from('search_history')
+        .insert({ user_id: user.id, search_type: 'filters', filters: Object.fromEntries(params.entries()) })
+        .then(() => {});
+    }
+
     router.push(`/?${params.toString()}`);
   }
 
@@ -140,6 +197,7 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
     setAuction('');
     setMake('');
     setModel('');
+    setTrim('');
     setDamage('');
     setStatus('');
     setSellerCategory('');
@@ -165,16 +223,16 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
   return (
     <aside className="sidebar-filters">
       <div className="filter-title">
-        <span>Filters</span>
+        <span>{t('filters')}</span>
         <span style={{ fontSize: '0.8rem', color: '#38bdf8', cursor: 'pointer' }} onClick={clearFilters}>
-          Reset
+          {t('reset')}
         </span>
       </div>
 
       <div className="filter-group">
-        <label className="filter-label">Vehicle Type</label>
+        <label className="filter-label">{t('vehicleType')}</label>
         <select className="filter-select" value={vehicleType} onChange={(e) => setVehicleType(e.target.value)}>
-          <option value="all">All Types</option>
+          <option value="all">{t('allTypes')}</option>
           {VEHICLE_TYPE_OPTIONS.map((v) => (
             <option key={v} value={v}>
               {v}
@@ -184,21 +242,21 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
       </div>
 
       <div className="filter-group">
-        <label className="filter-label">Seller</label>
+        <label className="filter-label">{t('seller')}</label>
         <select className="filter-select" value={sellerCategory} onChange={(e) => setSellerCategory(e.target.value)}>
-          <option value="">All Sellers</option>
-          {SELLER_OPTIONS.map(([value, label]) => (
+          <option value="">{t('allSellers')}</option>
+          {SELLER_OPTIONS.map(([value]) => (
             <option key={value} value={value}>
-              {label}
+              {value === 'insurance' ? t('insurance') : t('nonInsurance')}
             </option>
           ))}
         </select>
       </div>
 
       <div className="filter-group">
-        <label className="filter-label">Make</label>
+        <label className="filter-label">{t('make')}</label>
         <select className="filter-select" value={make} onChange={handleMakeChange}>
-          <option value="">All Makes</option>
+          <option value="">{t('allMakes')}</option>
           {[...makesModels]
             .sort((a, b) => a.make.localeCompare(b.make))
             .map((entry) => (
@@ -210,14 +268,14 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
       </div>
 
       <div className="filter-group">
-        <label className="filter-label">Model</label>
+        <label className="filter-label">{t('model')}</label>
         <select
           className="filter-select"
           value={model}
-          onChange={(e) => setModel(e.target.value)}
+          onChange={handleModelChange}
           disabled={!make}
         >
-          <option value="">{make ? 'All Models' : 'Select a make first'}</option>
+          <option value="">{make ? t('allModels') : t('selectMakeFirst')}</option>
           {models.map((m) => (
             <option key={m} value={m}>
               {m}
@@ -227,7 +285,24 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
       </div>
 
       <div className="filter-group">
-        <label className="filter-label">Year Range</label>
+        <label className="filter-label">{t('trim')}</label>
+        <select
+          className="filter-select"
+          value={trim}
+          onChange={(e) => setTrim(e.target.value)}
+          disabled={!model}
+        >
+          <option value="">{model ? t('allTrims') : t('selectModelFirst')}</option>
+          {trimOptions.map((trimValue) => (
+            <option key={trimValue} value={trimValue}>
+              {trimValue}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="filter-group">
+        <label className="filter-label">{t('yearRange')}</label>
         <div className="slider-values">
           <span>{yearFrom}</span>
           <span>{yearTo}</span>
@@ -260,7 +335,7 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
       </div>
 
       <div className="filter-group">
-        <label className="filter-label">Mileage Range (mi)</label>
+        <label className="filter-label">{t('mileageRange')}</label>
         <div className="slider-values">
           <span>{mileageFrom.toLocaleString('en-US')} mi</span>
           <span>
@@ -297,7 +372,7 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
       </div>
 
       <div className="filter-group">
-        <label className="filter-label">Engine Size (L)</label>
+        <label className="filter-label">{t('engineSize')}</label>
         <div className="slider-values">
           <span>{engineSizeFrom.toFixed(1)}L</span>
           <span>{engineSizeTo >= ENGINE_SIZE_MAX ? `${ENGINE_SIZE_MAX.toFixed(1)}L+` : `${engineSizeTo.toFixed(1)}L`}</span>
@@ -330,24 +405,24 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
       </div>
 
       <button type="button" className="more-filters-toggle" onClick={() => setShowMore((v) => !v)}>
-        {showMore ? '▴ Fewer Filters' : '▾ More Filters'}
+        {showMore ? t('fewerFilters') : t('moreFilters')}
       </button>
 
       {showMore && (
         <div className="more-filters-panel">
           <div className="filter-group">
-            <label className="filter-label">Auction House</label>
+            <label className="filter-label">{t('auctionHouse')}</label>
             <select className="filter-select" value={auction} onChange={(e) => setAuction(e.target.value)}>
-              <option value="">All (Copart & IAAI)</option>
+              <option value="">{t('allAuctions')}</option>
               <option value="1">Copart</option>
               <option value="2">IAAI</option>
             </select>
           </div>
 
           <div className="filter-group">
-            <label className="filter-label">Primary Damage</label>
+            <label className="filter-label">{t('primaryDamage')}</label>
             <select className="filter-select" value={damage} onChange={(e) => setDamage(e.target.value)}>
-              <option value="">All Damage Types</option>
+              <option value="">{t('allDamageTypes')}</option>
               {DAMAGE_OPTIONS.map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
@@ -357,9 +432,9 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
           </div>
 
           <div className="filter-group">
-            <label className="filter-label">Vehicle Status</label>
+            <label className="filter-label">{t('vehicleStatus')}</label>
             <select className="filter-select" value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="">All Statuses</option>
+              <option value="">{t('allStatuses')}</option>
               {STATUS_OPTIONS.map((s) => (
                 <option key={s} value={s}>
                   {s}
@@ -369,9 +444,9 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
           </div>
 
           <div className="filter-group">
-            <label className="filter-label">Engine Type</label>
+            <label className="filter-label">{t('engineType')}</label>
             <select className="filter-select" value={fuel} onChange={(e) => setFuel(e.target.value)}>
-              <option value="">All Engine Types</option>
+              <option value="">{t('allEngineTypes')}</option>
               {FUEL_OPTIONS.map((f) => (
                 <option key={f} value={f}>
                   {f}
@@ -381,9 +456,9 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
           </div>
 
           <div className="filter-group">
-            <label className="filter-label">Cylinders</label>
+            <label className="filter-label">{t('cylinders')}</label>
             <select className="filter-select" value={cylinders} onChange={(e) => setCylinders(e.target.value)}>
-              <option value="">Any</option>
+              <option value="">{t('any')}</option>
               {CYLINDERS_OPTIONS.map((c) => (
                 <option key={c} value={c}>
                   {c}
@@ -396,10 +471,10 @@ export default function FilterSidebar({ makesModels, initialFilters }) {
 
       <div className="sidebar-actions">
         <button className="btn btn-primary" onClick={applyFilters}>
-          Apply Filters
+          {t('applyFilters')}
         </button>
         <button className="btn btn-secondary" onClick={clearFilters}>
-          Clear All
+          {t('clearAll')}
         </button>
       </div>
     </aside>

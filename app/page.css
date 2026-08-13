@@ -1,26 +1,7 @@
-/* `body` jest teraz w app/globals.css (wspólne dla index i lot) */
-
-body::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 600px;
-    background-image: url('https://images.unsplash.com/photo-1590497008432-598f04441de8?q=80&w=4091&auto=format&fit=crop');
-    background-size: cover;
-    background-position: center top;
-    background-repeat: no-repeat;
-    opacity: 0.45;
-    filter: contrast(110%) brightness(90%);
-    -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%);
-    mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%);
-    pointer-events: none;
-    z-index: 0;
-}
+/* `body` i `body::before` są teraz w app/globals.css (wspólne dla wszystkich stron) */
 
 .container {
-    max-width: 1400px;
+    max-width: 1800px;
     margin: 0 auto;
     position: relative;
     z-index: 1;
@@ -30,6 +11,10 @@ body::before {
 
 .header-logo {
     text-align: center;
+    /* Więcej oddechu od górnej krawędzi strony do wyszukiwarki — także
+       odsuwa logo od .top-right-bar (position:fixed, prawy górny róg), które
+       urosło po przeniesieniu tam Log in/Sign up. */
+    margin-top: 28px;
     margin-bottom: 20px;
 }
 
@@ -51,23 +36,46 @@ body::before {
     }
 }
 
+/* Pierwsza kolumna (300px) to celowo pusty "spacer" o tej samej szerokości
+   co sidebar w .main-layout niżej (patrz tam) — dzięki temu lewa krawędź
+   wyszukiwarki wypada dokładnie tam, gdzie lewa krawędź pierwszego zdjęcia
+   samochodu w siatce poniżej, zamiast być wyśrodkowana niezależnie od
+   reszty layoutu. */
+.top-search-row {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    /* Ten sam gap co .main-layout niżej — obie siatki mają pierwszą kolumnę
+       300px, więc przy równym gap druga kolumna zaczyna się w tym samym
+       miejscu w obu rzędach (lewa krawędź wyszukiwarki = lewa krawędź
+       pierwszego kafelka). Log in/Sign up przeniesione do .top-right-bar
+       (app/layout.js, obok przełącznika PL/EN), więc ten rząd ma już tylko
+       wyszukiwarkę — zwykłe 2 kolumny, wypełnia całą szerokość. */
+    gap: 16px;
+    margin-bottom: 25px;
+}
+
 .top-search-section {
+    grid-column: 2;
     background-color: rgba(15, 23, 42, 0.85);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(56, 189, 248, 0.25);
     border-radius: 12px;
     padding: 20px;
-    margin-bottom: 25px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-    max-width: 800px;
-    margin-left: auto;
-    margin-right: auto;
+    max-width: 1200px;
+    width: 100%;
 }
 
 .top-search-form {
     display: flex;
     gap: 10px;
+}
+
+.top-search-error {
+    margin-top: 10px;
+    color: #f87171;
+    font-size: 0.85rem;
 }
 
 .top-search-input {
@@ -90,9 +98,53 @@ body::before {
 .main-layout {
     display: grid;
     grid-template-columns: 300px 1fr;
-    gap: 25px;
+    gap: 16px;
     align-items: start;
     margin-bottom: 50px;
+}
+
+.sidebar-column {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Kafelek Actual/Archive — placeholder na przyszłe/aktywne loty (na razie
+   pokazuje te same dane co Archive, bez plakietek statusu sprzedaży —
+   patrz komentarz w app/page.js przy isActiveView). */
+.view-toggle {
+    display: flex;
+    background-color: rgba(15, 23, 42, 0.95);
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 6px;
+    gap: 6px;
+}
+
+.view-toggle-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    text-align: center;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #94a3b8;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.view-toggle-btn:hover {
+    color: #e2e8f0;
+}
+
+.view-toggle-btn.active {
+    background: linear-gradient(135deg, #38bdf8, #0284c7);
+    color: #0f172a;
+    box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
 }
 
 .sidebar-filters {
@@ -104,6 +156,114 @@ body::before {
     position: sticky;
     top: 20px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* Menu konta (wariant "sidebar" w app/AccountBar.js) — te same proporcje/
+   tło co .sidebar-filters powyżej, tylko jako lista pozycji jedna pod
+   drugą, nad panelem filtrów w .sidebar-column. Widoczne wyłącznie po
+   zalogowaniu (AccountBar sam zwraca null dla gościa). */
+.account-sidebar-title {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #ffffff;
+    padding: 10px 12px 12px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid #334155;
+}
+
+.account-sidebar {
+    /* position+z-index — bez tego kafelki samochodów (dalej w DOM, w tym
+       samym kontekście warstw co .sidebar-column) rysują się NAD dymkiem
+       "Requires login", który wystaje poza prawą krawędź tej karty. */
+    position: relative;
+    z-index: 5;
+    background-color: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(12px);
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.account-sidebar-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: none;
+    background: none;
+    color: #cbd5e1;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.account-sidebar-item:hover {
+    background-color: #334155;
+    color: #ffffff;
+}
+
+/* Kłódka przy pozycji niedostępnej dla gościa — dosunięta do prawej
+   krawędzi wiersza, z podpowiedzią wysuwaną w bok (po prawej stronie menu
+   jest reszta strony, więc tam mieści się bez ucinania). */
+.account-sidebar-lock {
+    display: inline-flex;
+    align-items: center;
+    margin-left: auto;
+}
+
+.account-sidebar-tooltip {
+    position: absolute;
+    left: calc(100% + 10px);
+    top: 50%;
+    transform: translateY(-50%) translateX(-4px);
+    background-color: rgba(30, 41, 59, 0.95);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    color: #e2e8f0;
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+    padding: 5px 10px;
+    border-radius: 6px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    pointer-events: none;
+    z-index: 30;
+}
+
+.account-sidebar-item:hover .account-sidebar-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(-50%) translateX(0);
+}
+
+.account-sidebar-item svg {
+    flex-shrink: 0;
+}
+
+.account-sidebar-logout:hover {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+}
+
+.account-sidebar-logout:hover svg {
+    stroke: #f87171;
+}
+
+.account-sidebar-divider {
+    height: 1px;
+    background-color: #334155;
+    margin: 4px 6px;
 }
 
 .filter-title {
@@ -341,8 +501,83 @@ body::before {
 
 .car-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    /* Zawężamy całą siatkę (nie pojedyncze kafelki — to psuło odstępy,
+       patrz poprzednia poprawka), więc każda kolumna robi się węższa, a
+       odstęp (gap) między kafelkami zostaje dokładnie taki sam. Zbędna
+       przestrzeń ląduje w jednym kawałku po prawej stronie, a nie
+       rozsmarowana nierówno wokół każdego kafelka. justify-self: start,
+       żeby lewa krawędź została wyrównana z wyszukiwarką/filtrami. */
+    max-width: 90%;
+    justify-self: start;
+}
+
+@media (max-width: 1300px) {
+    .car-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Statystyki cenowe nad kafelkami — rozciąga się na całą szerokość siatki
+   (grid-column:1/-1 działa poprawnie też z auto-fill, niezależnie od
+   aktualnej liczby kolumn). */
+.price-stats-banner {
+    grid-column: 1 / -1;
+    display: flex;
+    background-color: rgba(30, 41, 59, 0.6);
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 16px 24px;
+    margin-bottom: 4px;
+}
+
+.price-stats-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    position: relative;
+}
+
+.price-stats-item + .price-stats-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1px;
+    height: 32px;
+    background-color: #334155;
+}
+
+.price-stats-item-avg .price-stats-value {
+    color: #38bdf8;
+}
+
+.price-stats-label {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+}
+
+.price-stats-value {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #f8fafc;
+}
+
+@media (max-width: 600px) {
+    .price-stats-banner {
+        padding: 12px 16px;
+    }
+
+    .price-stats-value {
+        font-size: 1.1rem;
+    }
 }
 
 .car-tile {
@@ -365,13 +600,76 @@ body::before {
     border-color: #475569;
 }
 
+.card-image-outer {
+    position: relative;
+}
+
 .card-image-wrapper {
     position: relative;
     width: 100%;
-    height: 190px;
+    /* Te same proporcje co oryginalne kafelki (320x190 ≈ 5:3) — poprzednia
+       sztywna wysokość 128px nie skalowała się z szerokością kolumny, więc
+       przy 4 kolumnach zdjęcia wychodziły spłaszczone/za niskie. aspect-ratio
+       trzyma proporcję niezależnie od liczby kolumn. */
+    aspect-ratio: 5 / 3;
     background-color: #0f172a;
     display: block;
     overflow: hidden;
+}
+
+/* Serduszko "dodaj do obserwowanych" — poza <Link>, więc pozycjonowane
+   względem .card-image-outer, po lewej (badge'y statusu/aukcji są po
+   prawej, patrz .tile-badges). */
+.favorite-btn {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 6;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background-color: rgba(15, 23, 42, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.favorite-btn:hover {
+    border-color: #f87171;
+    background-color: rgba(15, 23, 42, 0.85);
+    transform: scale(1.08);
+}
+
+.favorite-btn.active {
+    border-color: #f87171;
+    background-color: rgba(248, 113, 113, 0.15);
+}
+
+/* Mały dymek "Watch"/"Saved" po najechaniu na serduszko. */
+.favorite-btn::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    background-color: #1e293b;
+    border: 1px solid #334155;
+    color: #f8fafc;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+    z-index: 7;
+}
+
+.favorite-btn:hover::after {
+    opacity: 1;
 }
 
 .card-image {
@@ -501,14 +799,14 @@ body::before {
 }
 
 .card-body {
-    padding: 16px;
+    padding: 12px;
     display: flex;
     flex-direction: column;
     flex-grow: 1;
 }
 
 .car-title {
-    font-size: 1.15rem;
+    font-size: 0.92rem;
     font-weight: 700;
     color: #ffffff;
     margin-bottom: 2px;
@@ -523,19 +821,19 @@ body::before {
 }
 
 .vin-number {
-    font-size: 0.8rem;
+    font-size: 0.72rem;
     color: #94a3b8;
     font-family: monospace;
-    margin-bottom: 14px;
+    margin-bottom: 10px;
 }
 
 .details-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px 10px;
-    padding-top: 10px;
+    gap: 6px 10px;
+    padding-top: 8px;
     border-top: 1px solid #334155;
-    margin-bottom: 14px;
+    margin-bottom: 10px;
 }
 
 .detail-item {
@@ -574,7 +872,7 @@ body::before {
 .card-footer {
     margin-top: auto;
     background-color: #0f172a;
-    padding: 10px 14px;
+    padding: 8px 12px;
     border-radius: 8px;
     display: flex;
     justify-content: space-between;
@@ -587,14 +885,14 @@ body::before {
 }
 
 .price-label {
-    font-size: 0.65rem;
+    font-size: 0.62rem;
     color: #94a3b8;
     text-transform: uppercase;
     font-weight: 600;
 }
 
 .price-value {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 800;
     color: #38bdf8;
 }
@@ -630,7 +928,7 @@ body::before {
 /* `.site-footer` jest teraz w app/globals.css (wspólne dla index i lot) */
 
 .footer-container {
-    max-width: 1400px;
+    max-width: 1800px;
     margin: 0 auto;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -708,7 +1006,7 @@ body::before {
 }
 
 .footer-bottom {
-    max-width: 1400px;
+    max-width: 1800px;
     margin: 0 auto;
     padding-top: 20px;
     border-top: 1px solid #1e293b;
@@ -720,10 +1018,19 @@ body::before {
 @media (max-width: 900px) {
     .main-layout { grid-template-columns: 1fr; }
     .sidebar-filters { position: static; }
+    .car-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* ===== TELEFONY ===== */
 @media (max-width: 600px) {
+    .top-search-row {
+        grid-template-columns: 1fr;
+    }
+
+    .top-search-section {
+        grid-column: 1;
+    }
+
     .top-search-form {
         flex-direction: column;
     }

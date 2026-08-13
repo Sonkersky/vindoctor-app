@@ -1,10 +1,17 @@
 import Link from 'next/link';
 import './page.css';
 import FilterSidebar from './FilterSidebar';
+import ActiveArchiveToggle from './ActiveArchiveToggle';
+import AccountBar from './AccountBar';
 import PaginationBar from './PaginationBar';
 import TileImageCarousel from './TileImageCarousel';
-import { listCars, getMakesAndModels, getLotCounts } from '@/lib/queries';
-import { formatPrice, formatOdometer } from '@/lib/format';
+import FavoriteButton from './FavoriteButton';
+import MileageValue from './MileageValue';
+import VinSearchForm from './VinSearchForm';
+import HomeGridAligner from './HomeGridAligner';
+import { listCars, getMakesAndModels, getLotCounts, getPriceStats } from '@/lib/queries';
+import { formatPrice } from '@/lib/format';
+import { getServerTranslator } from '@/lib/i18n/server';
 
 // Proste, jednokolorowe ikony (niebieskie, minimalistyczne) zamiast emoji —
 // każda ma stały rozmiar/grubość kreski, żeby pasowały do siebie w rzędzie.
@@ -74,7 +81,7 @@ function tileStatusPillClass(saleStatus) {
   return 'status-other';
 }
 
-function CarTile({ car }) {
+function CarTile({ car, isActiveView, t }) {
   const site = car.base_site === 'iaai' ? 'iaai' : 'copart';
   const images =
     car.link_img_small && car.link_img_small.length
@@ -93,19 +100,28 @@ function CarTile({ car }) {
       data-auction={site}
       data-state={car.state || ''}
     >
-      <Link href={`/lot/${encodeURIComponent(car.vin)}`} className="card-image-wrapper">
-        <TileImageCarousel images={images} alt={title} />
-        <div className="tile-badges">
-          {isBuyNow ? (
-            <span className="tile-status-pill buynow-badge">⚡ Sold by BUY NOW</span>
-          ) : (
-            car.sale_status && (
-              <span className={`tile-status-pill ${tileStatusPillClass(car.sale_status)}`}>{car.sale_status}</span>
-            )
-          )}
-          <span className={`auction-badge ${site}`}>{site.toUpperCase()}</span>
-        </div>
-      </Link>
+      <div className="card-image-outer">
+        <Link href={`/lot/${encodeURIComponent(car.vin)}`} className="card-image-wrapper">
+          <TileImageCarousel images={images} alt={title} />
+          <div className="tile-badges">
+            {/* Widok "Actual" to na razie placeholder (te same dane co Archive,
+                patrz komentarz przy isActiveView w HomePage) — nie pokazujemy
+                tam plakietek statusu sprzedaży, bo te loty mają w tym widoku
+                udawać jeszcze niesprzedane. */}
+            {isActiveView ? null : isBuyNow ? (
+              <span className="tile-status-pill buynow-badge">⚡ Sold by BUY NOW</span>
+            ) : (
+              car.sale_status && (
+                <span className={`tile-status-pill ${tileStatusPillClass(car.sale_status)}`}>{car.sale_status}</span>
+              )
+            )}
+            <span className={`auction-badge ${site}`}>{site.toUpperCase()}</span>
+          </div>
+        </Link>
+        {/* Poza <Link>, bo <button> zagnieżdżony w <a> jest niepoprawnym HTML-em
+            i psuje nawigację — pozycjonowany absolutnie nad zdjęciem. */}
+        <FavoriteButton vin={car.vin} />
+      </div>
       <div className="card-body">
         <Link href={`/lot/${encodeURIComponent(car.vin)}`} className="car-title-link">
           <h2 className="car-title">{title}</h2>
@@ -113,33 +129,35 @@ function CarTile({ car }) {
         <div className="vin-number">VIN: {car.vin}</div>
         <div className="details-grid">
           <div className="detail-item">
-            <span className="detail-label"><IconPin /> Location</span>
+            <span className="detail-label"><IconPin /> {t('location')}</span>
             <span className="detail-value">{car.location || car.state || ''}</span>
           </div>
           <div className="detail-item">
-            <span className="detail-label"><IconGauge /> Odometer</span>
-            <span className="detail-value">{formatOdometer(car)}</span>
+            <span className="detail-label"><IconGauge /> {t('odometer')}</span>
+            <span className="detail-value">
+              <MileageValue odometer={car.odometer} unit={car.odometer_index} />
+            </span>
           </div>
           <div className="detail-item">
-            <span className="detail-label"><IconKey /> Status</span>
+            <span className="detail-label"><IconKey /> {t('status')}</span>
             <span className="detail-value">{car.status || ''}</span>
           </div>
           <div className="detail-item">
-            <span className="detail-label"><IconWrench /> Damage</span>
+            <span className="detail-label"><IconWrench /> {t('damage')}</span>
             <span className="detail-value">{car.damage_pr || ''}</span>
           </div>
           <div className="detail-item">
-            <span className="detail-label"><IconDocument /> Sale Document</span>
+            <span className="detail-label"><IconDocument /> {t('saleDocument')}</span>
             <span className="detail-value">{car.document || 'N/A'}</span>
           </div>
         </div>
         <div className="card-footer">
           <div className="price-box-inner">
-            <span className="price-label">Final Price:</span>
+            <span className="price-label">{t('finalPrice')}</span>
             <span className="price-value">{formatPrice(car)}</span>
           </div>
           <Link href={`/lot/${encodeURIComponent(car.vin)}`} className="view-lot-btn">
-            VIEW LOT
+            {t('viewLot')}
           </Link>
         </div>
       </div>
@@ -160,6 +178,7 @@ export default async function HomePage({ searchParams }) {
     site: sp.site || '',
     make: sp.make || '',
     model: sp.model || '',
+    trim: sp.trim || '',
     damage: sp.damage || '',
     status: sp.status || '',
     sellerCategory: sp.sellerCategory || '',
@@ -175,10 +194,22 @@ export default async function HomePage({ searchParams }) {
   };
   const page = Math.max(1, Number(sp.page) || 1);
 
-  const [{ cars, hasNextPage }, makesModels, lotCounts] = await Promise.all([
+  // Placeholder pod przyszłe/aktywne loty (patrz rozmowa o planie kont i
+  // podziale Active/Archived) — na razie apicar.store nie daje nam danych o
+  // nadchodzących aukcjach (osobny, niepotwierdzony jeszcze dostęp/koszt), więc
+  // widok "Actual" pokazuje te same dane co "Archive", tylko bez plakietek
+  // statusu sprzedaży (patrz CarTile). Podmienimy na prawdziwe dane, jak tylko
+  // będzie dostęp do właściwego feedu.
+  const isActiveView = sp.view === 'active';
+
+  // Statystyki cenowe tylko po wybraniu marki — bez sensu (i bez potrzeby
+  // odpytywania bazy) dla domyślnego, niefiltrowanego widoku.
+  const [{ cars, hasNextPage }, makesModels, lotCounts, priceStats, { t }] = await Promise.all([
     listCars(filters, page),
     getMakesAndModels(),
     getLotCounts(),
+    filters.make ? getPriceStats(filters) : Promise.resolve({ min: null, max: null, avg: null, count: 0 }),
+    getServerTranslator(),
   ]);
 
   const filtersQueryString = new URLSearchParams(
@@ -187,6 +218,7 @@ export default async function HomePage({ searchParams }) {
 
   return (
     <>
+    <HomeGridAligner />
     <div className="container">
       {/* LOGO */}
       <div className="header-logo">
@@ -197,34 +229,46 @@ export default async function HomePage({ searchParams }) {
       </div>
 
       {/* TOP SEARCH BAR */}
-      <div className="top-search-section">
-        <form className="top-search-form" action="/lot.html" method="GET">
-          <input
-            type="text"
-            name="vin"
-            className="top-search-input"
-            placeholder="Enter VIN number (e.g. 1FA6P8CF5M5123456)"
-            required
-          />
-          <button type="submit" className="btn btn-primary">
-            Search VIN
-          </button>
-        </form>
+      <div className="top-search-row">
+        <div className="top-search-section">
+          <VinSearchForm />
+        </div>
       </div>
 
       {/* MAIN LAYOUT */}
       <div className="main-layout">
-        <FilterSidebar makesModels={makesModels} initialFilters={{ ...filters, page: String(page) }} />
+        <div className="sidebar-column">
+          <AccountBar variant="sidebar" />
+          <ActiveArchiveToggle isActiveView={isActiveView} filtersQueryString={filtersQueryString} t={t} />
+          <FilterSidebar makesModels={makesModels} initialFilters={{ ...filters, page: String(page) }} />
+        </div>
 
         {/* VEHICLES GRID */}
         <main className="car-grid">
+          {priceStats.count > 0 && (
+            <div className="price-stats-banner">
+              <div className="price-stats-item">
+                <span className="price-stats-label">{t('low')}</span>
+                <span className="price-stats-value">${Math.round(priceStats.min).toLocaleString('en-US')}</span>
+              </div>
+              <div className="price-stats-item price-stats-item-avg">
+                <span className="price-stats-label">{t('average')}</span>
+                <span className="price-stats-value">${Math.round(priceStats.avg).toLocaleString('en-US')}</span>
+              </div>
+              <div className="price-stats-item">
+                <span className="price-stats-label">{t('high')}</span>
+                <span className="price-stats-value">${Math.round(priceStats.max).toLocaleString('en-US')}</span>
+              </div>
+            </div>
+          )}
+
           {cars.length === 0 ? (
             <div id="noResults" style={{ display: 'block' }}>
-              <h3>No vehicles match your search criteria.</h3>
-              <p style={{ marginTop: '8px' }}>Try clearing filters to see all available cars.</p>
+              <h3>{t('noResultsTitle')}</h3>
+              <p style={{ marginTop: '8px' }}>{t('noResultsHint')}</p>
             </div>
           ) : (
-            cars.map((car) => <CarTile key={car.vin} car={car} />)
+            cars.map((car) => <CarTile key={car.vin} car={car} isActiveView={isActiveView} t={t} />)
           )}
 
           {cars.length > 0 && (
@@ -243,9 +287,9 @@ export default async function HomePage({ searchParams }) {
               <img src="/logo_2.png" alt="DOCTOR.VIN Logo" className="footer-logo" />
             </Link>
             <p className="footer-text">
-              Got any questions?
+              {t('footerContact')}
               <br />
-              Feel free to contact
+              {t('footerContact2')}
               <br />
               <a href="mailto:contact@doctor.vin" className="footer-email">
                 contact@doctor.vin
@@ -254,37 +298,37 @@ export default async function HomePage({ searchParams }) {
           </div>
 
           <div className="footer-col">
-            <h4 className="footer-heading">Information</h4>
+            <h4 className="footer-heading">{t('information')}</h4>
             <ul className="footer-links">
               <li>
-                <a href="#">Terms &amp; Conditions</a>
+                <a href="#">{t('termsConditions')}</a>
               </li>
               <li>
-                <a href="#">Privacy Policy</a>
+                <a href="#">{t('privacyPolicy')}</a>
               </li>
               <li>
-                <a href="#">VIN Lookup FAQ</a>
+                <a href="#">{t('vinFaq')}</a>
               </li>
             </ul>
           </div>
 
           <div className="footer-col">
-            <h4 className="footer-heading">Statistics</h4>
+            <h4 className="footer-heading">{t('statistics')}</h4>
             <ul className="stats-list">
               <li>
-                Lots: <span>{lotCounts.total.toLocaleString('en-US')}</span>
+                {t('lots')} <span>{lotCounts.total.toLocaleString('en-US')}</span>
               </li>
               <li>
-                Copart Lots: <span>{lotCounts.copart.toLocaleString('en-US')}</span>
+                {t('copartLots')} <span>{lotCounts.copart.toLocaleString('en-US')}</span>
               </li>
               <li>
-                IAAI Lots: <span>{lotCounts.iaai.toLocaleString('en-US')}</span>
+                {t('iaaiLots')} <span>{lotCounts.iaai.toLocaleString('en-US')}</span>
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="footer-bottom">Ⓒ 2026 VINDOCTOR. All rights reserved</div>
+        <div className="footer-bottom">Ⓒ 2026 VINDOCTOR. {t('footerRights')}</div>
       </footer>
     </>
   );

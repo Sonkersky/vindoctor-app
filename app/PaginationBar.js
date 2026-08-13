@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useLocale } from './i18n/LocaleContext';
 
 // Wcześniej to były same <button onClick={router.push}> — Googlebot odkrywa
 // nowe strony podążając za prawdziwymi linkami (<a href>), nie klikając w
@@ -26,6 +27,7 @@ function scrollToTop() {
 // Odtwarza dokładnie tę samą logikę co oryginalny JS: okno 10 numerków stron
 // przesuwające się wraz z bieżącą stroną, Next wyłączony gdy strona nie była pełna.
 export default function PaginationBar({ currentPage, hasNextPage, filtersQueryString }) {
+  const { t } = useLocale();
   const windowSize = 10;
   const windowStart = Math.max(1, currentPage - 4);
   const pageNumbers = Array.from({ length: windowSize }, (_, i) => windowStart + i);
@@ -44,11 +46,11 @@ export default function PaginationBar({ currentPage, hasNextPage, filtersQuerySt
     >
       {currentPage > 1 ? (
         <Link className="btn btn-secondary" href={buildHref(currentPage - 1, filtersQueryString)} onClick={scrollToTop}>
-          ← Prev
+          {t('previous')}
         </Link>
       ) : (
         <button className="btn btn-secondary" disabled>
-          ← Prev
+          {t('previous')}
         </button>
       )}
       <div className="page-numbers">
@@ -65,11 +67,11 @@ export default function PaginationBar({ currentPage, hasNextPage, filtersQuerySt
       </div>
       {hasNextPage ? (
         <Link className="btn btn-primary" href={buildHref(currentPage + 1, filtersQueryString)} onClick={scrollToTop}>
-          Next →
+          {t('next')}
         </Link>
       ) : (
         <button className="btn btn-primary" disabled>
-          Next →
+          {t('next')}
         </button>
       )}
     </div>
