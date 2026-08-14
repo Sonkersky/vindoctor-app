@@ -9,7 +9,7 @@ import { useLocale } from './i18n/LocaleContext';
 // poza tym, co i tak trafiało do sitemapy. <Link> renderuje realny <a href>
 // (Next.js robi to niezależnie od tego, czy komponent jest 'use client'),
 // nawigacja klient-side działa dalej tak samo, tylko Google ma czego się złapać.
-function buildHref(page, filtersQueryString) {
+function buildHref(page, filtersQueryString, basePath) {
   const params = new URLSearchParams(filtersQueryString);
   if (page > 1) {
     params.set('page', String(page));
@@ -17,7 +17,7 @@ function buildHref(page, filtersQueryString) {
     params.delete('page');
   }
   const qs = params.toString();
-  return qs ? `/?${qs}` : '/';
+  return qs ? `${basePath}?${qs}` : basePath;
 }
 
 function scrollToTop() {
@@ -27,7 +27,7 @@ function scrollToTop() {
 // Okno numerków stron przesuwające się wraz z bieżącą stroną (maks. 10),
 // ucięte do lastPageInWindow (lib/queries.js) — bez tego przyciski 4-10
 // bywały klikalne, nawet gdy tylu stron wyników w ogóle nie było.
-export default function PaginationBar({ currentPage, hasNextPage, filtersQueryString, lastPageInWindow }) {
+export default function PaginationBar({ currentPage, hasNextPage, filtersQueryString, lastPageInWindow, basePath = '/' }) {
   const { t } = useLocale();
   const windowStart = Math.max(1, currentPage - 4);
   const windowEnd = lastPageInWindow ?? windowStart + 9;
@@ -47,7 +47,7 @@ export default function PaginationBar({ currentPage, hasNextPage, filtersQuerySt
       }}
     >
       {currentPage > 1 ? (
-        <Link className="btn btn-secondary" href={buildHref(currentPage - 1, filtersQueryString)} onClick={scrollToTop}>
+        <Link className="btn btn-secondary" href={buildHref(currentPage - 1, filtersQueryString, basePath)} onClick={scrollToTop}>
           {t('previous')}
         </Link>
       ) : (
@@ -60,7 +60,7 @@ export default function PaginationBar({ currentPage, hasNextPage, filtersQuerySt
           <Link
             key={num}
             className={`page-btn ${num === currentPage ? 'active' : ''}`}
-            href={buildHref(num, filtersQueryString)}
+            href={buildHref(num, filtersQueryString, basePath)}
             onClick={scrollToTop}
           >
             {num}
@@ -68,7 +68,7 @@ export default function PaginationBar({ currentPage, hasNextPage, filtersQuerySt
         ))}
       </div>
       {hasNextPage ? (
-        <Link className="btn btn-primary" href={buildHref(currentPage + 1, filtersQueryString)} onClick={scrollToTop}>
+        <Link className="btn btn-primary" href={buildHref(currentPage + 1, filtersQueryString, basePath)} onClick={scrollToTop}>
           {t('next')}
         </Link>
       ) : (

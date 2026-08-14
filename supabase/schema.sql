@@ -164,15 +164,20 @@ alter table cars add column if not exists document_detail text;
 -- potrafiło zwracać 0 — najwyraźniej coś w tamtejszym środowisku gubiło/źle
 -- interpretowało te nagłówki), jedna funkcja zwracająca liczby wprost jako
 -- JSON w treści odpowiedzi — odporne na ten problem.
+-- Liczy 'Sold' + 'Not sold' + 'ON APPROVAL' razem — musi się zgadzać z tym,
+-- co faktycznie widać w Archive (lib/queries.js: applyFilters .in
+-- ('sale_status', ['Sold','Not sold','ON APPROVAL'])). Wcześniej liczyło
+-- tylko 'Sold', więc stopka pokazywała 88 146 zamiast realnych 141 254
+-- przeglądalnych lotów historycznych.
 create or replace function get_lot_counts()
 returns json
 language sql
 stable
 as $$
   select json_build_object(
-    'total', count(*) filter (where sale_status = 'Sold'),
-    'copart', count(*) filter (where sale_status = 'Sold' and base_site = 'copart'),
-    'iaai', count(*) filter (where sale_status = 'Sold' and base_site = 'iaai')
+    'total', count(*) filter (where sale_status in ('Sold', 'Not sold', 'ON APPROVAL')),
+    'copart', count(*) filter (where sale_status in ('Sold', 'Not sold', 'ON APPROVAL') and base_site = 'copart'),
+    'iaai', count(*) filter (where sale_status in ('Sold', 'Not sold', 'ON APPROVAL') and base_site = 'iaai')
   )
   from cars;
 $$;
@@ -497,12 +502,15 @@ begin
     where_clause := where_clause || ' and vehicle_type = ''Automobile''';
   end if;
 
-  -- "Lowest Price" ignoruje auta poniżej $3000 (rozbite/salvage sztuki za
-  -- grosze zaniżały ten wskaźnik do wartości nieprzydatnych jako punkt
-  -- odniesienia) — filter (where ...) liczy MIN tylko z tego podzbioru,
-  -- max/avg/count nadal liczone ze wszystkich pasujących aut.
+  -- Ignorujemy auta poniżej $3000 (rozbite/salvage sztuki za grosze
+  -- zaniżały punkt odniesienia) — celowo dla WSZYSTKICH czterech wartości
+  -- razem (nie tylko MIN, jak było wcześniej), bo osobny próg tylko dla MIN
+  -- potrafił dać "Average" NIŻSZE niż "Lowest" (np. Dodge: Lowest $3,000,
+  -- Average $2,910) — matematycznie poprawne przy takim mieszaniu progów,
+  -- ale wygląda jak błąd. Liczenie wszystkiego z tego samego podzbioru
+  -- usuwa tę niespójność.
   return query execute
-    'select min(purchase_price) filter (where purchase_price >= 3000), max(purchase_price), avg(purchase_price), count(*) from cars where ' || where_clause;
+    'select min(purchase_price), max(purchase_price), avg(purchase_price), count(*) from cars where ' || where_clause || ' and purchase_price >= 3000';
 end;
 $$;
 
@@ -630,3 +638,32 @@ grant select on active_lots to anon, authenticated;
 alter table active_lots enable row level security;
 drop policy if exists "active_lots_public_read" on active_lots;
 create policy "active_lots_public_read" on active_lots for select using (true);
+
+-- ============================================================
+-- SEKCJE "Buy Now Inventory" / "Motorcycles" NA STRONIE GŁÓWNEJ
+-- ============================================================
+-- Wspiera domyślne sortowanie widoku Actual (vehicle_type='Automobile',
+-- order by auction_date) i listing "Buy Now" (ten sam vehicle_type +
+-- is_buynow=true) bez pełnego skanu 675k+ wierszy.
+create index if not exists idx_active_lots_vehicle_type_auction_date
+  on active_lots (vehicle_type, auction_date);
+create index if not exists idx_active_lots_vehicle_type_is_buynow
+  on active_lots (vehicle_type, is_buynow);
+
+-- Liczniki do nowych kafelków-zajawek na stronie głównej — jedna funkcja
+-- zamiast dwóch osobnych count:'exact' zapytań przez PostgREST (patrz
+-- komentarz przy get_lot_counts() — to samo uzasadnienie: liczby wprost w
+-- JSON-ie, cache'owane 5 min po stronie Next.js, więc realnie liczone
+-- rzadko, nie przy każdym wejściu).
+create or replace function get_active_lot_counts()
+returns json
+language sql
+stable
+as $$
+  select json_build_object(
+    'buyNow', (select count(*) from active_lots where vehicle_type = 'Automobile' and is_buynow = true),
+    'motorcycles', (select count(*) from active_lots where vehicle_type = 'Motorcycle')
+  );
+$$;
+
+grant execute on function get_active_lot_counts to anon, authenticated;
