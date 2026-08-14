@@ -1082,6 +1082,9 @@
     .main-layout { grid-template-columns: 1fr; }
     .sidebar-filters { position: static; }
     .car-grid { grid-template-columns: repeat(2, 1fr); }
+    /* .main-layout ma tu tylko 1 kolumnę — grid-column:2 (patrz wyżej)
+       wskazywałoby na nieistniejącą drugą kolumnę. */
+    .highlight-section { grid-column: 1; }
 }
 
 /* ===== TELEFONY ===== */
@@ -1109,8 +1112,20 @@
 
 /* ===== SEKCJE-ZAJAWKI "Buy Now Inventory" / "Motorcycles" (pod Actual) ===== */
 .highlight-section {
+    /* grid-column:2 — ten sam slot co .car-grid w .main-layout
+       (grid-template-columns: 300px 1fr), więc max-width:90% liczy się od
+       tej samej szerokości kolumny i kafelki wychodzą identycznej wielkości
+       (zgłoszone: "wyrównaj z actual lots, taki sam wymiar kafelków"). Bez
+       tego (poprzednio poza .main-layout, wprost w .container) 90% liczyło
+       się od PEŁNEJ szerokości strony, nie kolumny obok sidebaru. */
+    grid-column: 2;
     max-width: 90%;
     margin: 30px 0 0;
+}
+
+.highlight-section:last-of-type {
+    /* Odstęp od stopki (zgłoszone: kafelki z motocyklami zbyt blisko). */
+    margin-bottom: 40px;
 }
 
 .highlight-section-header {

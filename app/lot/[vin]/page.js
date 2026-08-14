@@ -368,7 +368,7 @@ export default async function LotPage({ params }) {
           </div>
         </div>
 
-        <div className="footer-bottom">Ⓒ 2026 VINDOCTOR. {t('footerRights')}</div>
+        <div className="footer-bottom">Ⓒ 2026 DOCTOR.VIN. {t('footerRights')}</div>
       </footer>
     </>
   );
