@@ -13,11 +13,12 @@ import { buildGalleryItems, getPhotoUrls } from '@/lib/gallery';
 import { isDestructiveDocument, sellerDisplay, saleStatusPill, extraInfoFields } from '@/lib/lotHelpers';
 import { getServerTranslator } from '@/lib/i18n/server';
 
-// Ukryte na razie: apicar.store nie zwraca danych sale_history (sprawdzone
-// bezpośrednio w API — puste dla każdego testowanego VIN-u), więc sekcja
-// zawsze pokazywała "No previous sale records found." Zostawiamy kod gotowy
-// do włączenia z powrotem (flip na true), gdyby dane zaczęły przychodzić.
-const SHOW_SALES_HISTORY = false;
+// Włączone z powrotem: apicar.store rzeczywiście nie wypełnia sale_history
+// (nadal puste, sprawdzone na żywo), ALE getCarByVin (lib/queries.js) teraz
+// sam dokłada tu poprzedni wynik z "cars", gdy dany VIN wraca na aukcję po
+// "Not sold"/"ON APPROVAL" (patrz active_lots) — to jedyny scenariusz, w
+// którym ta sekcja realnie ma dziś co pokazać.
+const SHOW_SALES_HISTORY = true;
 
 export async function generateMetadata({ params }) {
   const { vin } = await params;
@@ -87,7 +88,14 @@ export default async function LotPage({ params }) {
   const site = car.base_site === 'iaai' ? 'iaai' : 'copart';
   const title = car.title || `${car.year || ''} ${car.make || ''} ${car.model || ''}`.trim();
 
-  const pill = saleStatusPill(car.sale_status || (car.sale_history[0] && car.sale_history[0].sale_status));
+  // Aktywny lot (jeszcze nie sprzedany, patrz getCarByVin w lib/queries.js)
+  // nie ma sensownego "obecnego" statusu sprzedaży do pokazania — sale_status
+  // jest wtedy null, a poprzedni wynik w sale_history[0] to HISTORIA (np.
+  // "Not sold" sprzed powrotu na aukcję), nie stan bieżący — pokazanie go
+  // jako głównej plakietki sugerowałoby, że aukcja już się zakończyła.
+  const pill = car.isActiveLot
+    ? { text: 'ACTIVE', className: 'sale-status-pill status-active' }
+    : saleStatusPill(car.sale_status || (car.sale_history[0] && car.sale_history[0].sale_status));
   const isBuyNow = (car.sale_status || '').toLowerCase() === 'sold' && (car.sale_type || '').toLowerCase() === 'buynow';
   // Sprawdzamy razem document i document_detail — apicar.store często
   // trzyma ogólny kubełek ("Other") w document, a konkretną, stanową
@@ -145,7 +153,9 @@ export default async function LotPage({ params }) {
       '@type': 'Offer',
       priceCurrency: 'USD',
       price: car.purchase_price != null ? Number(car.purchase_price) : undefined,
-      availability: 'https://schema.org/SoldOut',
+      // Aktywny lot = trwająca aukcja, nie zakończona sprzedaż — InStock jest
+      // tu poprawniejsze niż SoldOut (patrz komentarz wyżej o "isActiveLot").
+      availability: car.isActiveLot ? 'https://schema.org/InStock' : 'https://schema.org/SoldOut',
     },
   };
 
@@ -194,10 +204,12 @@ export default async function LotPage({ params }) {
           <div className="price-box">
             <div className="price-box-top">
               <div className="label-row">
-                <div className="label">{t('finalBid')}</div>
+                <div className="label">{car.isActiveLot ? t('currentBid') : t('finalBid')}</div>
               </div>
             </div>
-            <div className="amount">{formatPrice(car)}</div>
+            <div className="amount">
+              {car.isActiveLot && !car.purchase_price ? t('noBidsYet') : formatPrice(car)}
+            </div>
           </div>
 
           <BuyLeadModal car={car} />

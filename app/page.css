@@ -823,6 +823,31 @@
 .tile-status-pill.status-not-sold { background-color: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); }
 .tile-status-pill.status-other { background-color: rgba(234, 179, 8, 0.15); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.4); }
 
+/* Odliczanie do rozpoczęcia licytacji (widok Actual) — dolny-lewy róg
+   zdjęcia, żeby nie kolidować z .tile-badges (górny-prawy). */
+.tile-countdown-row {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    z-index: 2;
+}
+
+.auction-countdown-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-weight: 800;
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.3px;
+    background-color: rgba(15, 23, 42, 0.85);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    backdrop-filter: blur(4px);
+}
+
 /* Plakietka "Sold by BUY NOW" na kafelku (ten sam wygląd co na podstronie
    lotu, patrz app/lot/[vin]/lot.css .buynow-badge) — pokazywana zamiast
    zwykłego "SOLD", gdy sale_type = buynow. */
@@ -1079,5 +1104,78 @@
 
     .car-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+/* ===== SEKCJE-ZAJAWKI "Buy Now Inventory" / "Motorcycles" (pod Actual) ===== */
+.highlight-section {
+    max-width: 90%;
+    margin: 30px 0 0;
+}
+
+.highlight-section-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.highlight-section-title {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #f8fafc;
+}
+
+.highlight-section-count {
+    margin-left: 8px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #38bdf8;
+}
+
+.highlight-section-see-all {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #38bdf8;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    background-color: rgba(56, 189, 248, 0.08);
+    white-space: nowrap;
+}
+
+.highlight-section-see-all:hover {
+    background-color: rgba(56, 189, 248, 0.18);
+}
+
+.highlight-section-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+@media (max-width: 1100px) {
+    .highlight-section-row {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 800px) {
+    .highlight-section-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .highlight-section {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 600px) {
+    .highlight-section-row {
+        grid-template-columns: 1fr;
+    }
+    .highlight-section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
     }
 }
