@@ -43,6 +43,31 @@ function saveProgress(progress) {
   writeFileSync(PROGRESS_FILE, JSON.stringify(progress, null, 2));
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// 137 stron w jednym ciągu to sporo czasu na przejściowe błędy (Cloudflare
+// 5xx z Supabase, chwilowy timeout apicar.store) — bez ponawiania jeden taki
+// błąd ubijał cały skrypt i wymagał ręcznego wznowienia. Rosnący odstęp
+// (5s, 10s, 20s...) daje przejściowej awarii czas, żeby minęła samoistnie.
+async function withRetry(fn, { retries = 5 } = {}) {
+  let lastErr;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (attempt < retries) {
+        const delayMs = 5000 * 2 ** attempt;
+        console.log(`\n[błąd, próba ${attempt + 1}/${retries + 1}, czekam ${delayMs / 1000}s]`, err.message || err);
+        await sleep(delayMs);
+      }
+    }
+  }
+  throw lastErr;
+}
+
 async function main() {
   const { reset } = parseArgs();
   let progress = reset ? { nextPage: 1, totalSaved: 0 } : loadProgress();
@@ -53,7 +78,7 @@ async function main() {
   let totalPages = null;
 
   while (totalPages === null || page <= totalPages) {
-    const result = await fetchActiveLotsAllPage({ page, size: PAGE_SIZE });
+    const result = await withRetry(() => fetchActiveLotsAllPage({ page, size: PAGE_SIZE }));
     totalPages = result.pages;
 
     if (result.data.length === 0) {
@@ -61,7 +86,7 @@ async function main() {
       break;
     }
 
-    const { saved } = await upsertActiveLotsBatch(result.data);
+    const { saved } = await withRetry(() => upsertActiveLotsBatch(result.data));
     progress.totalSaved += saved;
     progress.nextPage = page + 1;
     saveProgress(progress);
