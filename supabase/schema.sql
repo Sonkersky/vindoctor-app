@@ -544,3 +544,89 @@ create policy "leads_select_admin_only" on leads
   );
 
 grant select on leads to authenticated;
+
+-- ============================================================
+-- AKTYWNE LOTY (jeszcze nie sprzedane — apicar.store /cars/db/all|update|deleted)
+-- ============================================================
+-- Osobna tabela od "cars" celowo: "cars" jest kluczowane po VIN-ie (jeden
+-- wiersz na auto), ale ten sam VIN potrafi wrócić na aukcję (np. po "Not
+-- sold") jako NOWY aktywny lot — upsert po VIN-ie nadpisałby wtedy
+-- historyczny rekord danymi z bieżącej, jeszcze niezakończonej aukcji.
+-- Klucz naturalny dla aktywnych lotów to lot_id (unikalny per aukcja apicar),
+-- nie VIN. Gdy lot się sprzedaje: /cars/deleted zwraca jego lot_id (usuwamy
+-- stąd), a niezależny, już istniejący codzienny sync historyczny
+-- (app/api/sync/route.js) dogania sprzedaż po swojej stronie po VIN-ie.
+create table if not exists active_lots (
+  lot_id                bigint primary key,
+  site                  integer,
+  base_site             text,           -- 'copart' | 'iaai'
+  vin                   text,
+
+  title                 text,
+  year                  integer,
+  make                  text,
+  model                 text,
+  series                text,
+  vehicle_type          text,
+  color                 text,
+  engine                text,
+  engine_size           numeric,
+  cylinders             text,
+  fuel                  text,
+  drive                 text,
+  transmission          text,
+  keys                  text,
+
+  location              text,
+  state                 text,
+
+  odometer              numeric,
+  odometer_index        text,
+  odobrand              text,
+
+  damage_pr             text,
+  damage_sec            text,
+  document               text,
+  document_detail       text,
+  seller                text,
+  seller_type           text,
+  status                text,
+
+  -- aukcja jeszcze trwa — nie ma "final" ceny, tylko aktualna oferta/szacunki
+  current_bid           numeric,
+  cost_priced            numeric,       -- szacowana wartość
+  price_new             numeric,
+  price_future          numeric,
+  auction_date          timestamptz,
+  presale_status        text,
+  is_buynow              boolean,
+
+  link_img_hd           jsonb default '[]'::jsonb,
+  link_img_small        jsonb default '[]'::jsonb,
+  iaai_360              jsonb default '[]'::jsonb,
+  copart_exterior_360   jsonb default '[]'::jsonb,
+  video                 jsonb default '[]'::jsonb,
+
+  raw_json              jsonb,
+
+  created_at            timestamptz not null default now(),
+  updated_at            timestamptz not null default now()
+);
+
+create index if not exists idx_active_lots_make        on active_lots (make);
+create index if not exists idx_active_lots_model       on active_lots (model);
+create index if not exists idx_active_lots_year        on active_lots (year);
+create index if not exists idx_active_lots_odometer    on active_lots (odometer);
+create index if not exists idx_active_lots_damage_pr   on active_lots (damage_pr);
+create index if not exists idx_active_lots_status      on active_lots (status);
+create index if not exists idx_active_lots_base_site   on active_lots (base_site);
+create index if not exists idx_active_lots_vin         on active_lots (vin);
+create index if not exists idx_active_lots_vehicle_type_make_model
+  on active_lots (vehicle_type, make, model);
+create index if not exists idx_active_lots_auction_date on active_lots (auction_date);
+
+grant select on active_lots to anon, authenticated;
+
+alter table active_lots enable row level security;
+drop policy if exists "active_lots_public_read" on active_lots;
+create policy "active_lots_public_read" on active_lots for select using (true);
