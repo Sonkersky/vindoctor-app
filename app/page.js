@@ -124,9 +124,15 @@ export default async function HomePage({ searchParams }) {
     isActiveView ? getActiveLotCounts() : Promise.resolve({ buyNow: 0, motorcycles: 0 }),
   ]);
 
-  const filtersQueryString = new URLSearchParams(
-    Object.entries(filters).filter(([, v]) => v)
-  ).toString();
+  // "view" musi być częścią tego stringa (nie tylko filtry) — inaczej
+  // PaginationBar (który go nie zna, tylko doklada "page") przy każdej
+  // zmianie strony w Archive gubił ?view=archive i wracał na domyślne
+  // Actual. ActiveArchiveToggle i tak sam nadpisuje/usuwa "view" w swoich
+  // dwóch linkach, więc obecność go tutaj mu nie przeszkadza.
+  const filtersQueryString = new URLSearchParams([
+    ...Object.entries(filters).filter(([, v]) => v),
+    ...(isActiveView ? [] : [['view', 'archive']]),
+  ]).toString();
 
   return (
     <>
@@ -201,26 +207,31 @@ export default async function HomePage({ searchParams }) {
             />
           )}
         </main>
-      </div>
 
-      {isActiveView && (
-        <>
-          <HighlightSection
-            title={t('buyNowInventory')}
-            count={activeLotCounts.buyNow}
-            cars={buyNowPreview}
-            seeAllHref="/buy-now"
-            t={t}
-          />
-          <HighlightSection
-            title={t('motorcycles')}
-            count={activeLotCounts.motorcycles}
-            cars={motorcyclesPreview}
-            seeAllHref="/motorcycles"
-            t={t}
-          />
-        </>
-      )}
+        {/* W .main-layout (grid-column: 2, patrz page.css), nie poza nim —
+            inaczej te sekcje nie widzą kolumny sidebaru i wychodzą szersze/
+            przesunięte względem car-grid nad nimi (zgłoszone: kafelki
+            "nierówne"). Tu automatycznie dziedziczą tę samą szerokość
+            kolumny i te same reguły .car-grid (max-width:90%, gap). */}
+        {isActiveView && (
+          <>
+            <HighlightSection
+              title={t('buyNowInventory')}
+              count={activeLotCounts.buyNow}
+              cars={buyNowPreview}
+              seeAllHref="/buy-now"
+              t={t}
+            />
+            <HighlightSection
+              title={t('motorcycles')}
+              count={activeLotCounts.motorcycles}
+              cars={motorcyclesPreview}
+              seeAllHref="/motorcycles"
+              t={t}
+            />
+          </>
+        )}
+      </div>
     </div>
 
       {/* STOPKA / FOOTER */}
@@ -273,7 +284,7 @@ export default async function HomePage({ searchParams }) {
           </div>
         </div>
 
-        <div className="footer-bottom">Ⓒ 2026 VINDOCTOR. {t('footerRights')}</div>
+        <div className="footer-bottom">Ⓒ 2026 DOCTOR.VIN. {t('footerRights')}</div>
       </footer>
     </>
   );
