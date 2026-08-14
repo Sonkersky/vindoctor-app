@@ -36,11 +36,13 @@ function IconBolt() {
 // Zwykłe <Link> (realne <a href>), nie router.push z klienta — ten sam powód
 // co przy PaginationBar: Google podąża za linkami, nie klika w JS-owe
 // przyciski. Zachowuje aktualne filtry, resetuje tylko numer strony.
+// Domyślny widok (brak parametru) to Actual — patrz isActiveView w
+// app/page.js — więc to Archive teraz musi być jawnym parametrem w URL.
 function buildHref(view, filtersQueryString) {
   const params = new URLSearchParams(filtersQueryString);
   params.delete('page');
-  if (view === 'active') {
-    params.set('view', 'active');
+  if (view === 'archive') {
+    params.set('view', 'archive');
   } else {
     params.delete('view');
   }

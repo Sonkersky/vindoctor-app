@@ -239,8 +239,9 @@ export default async function HomePage({ searchParams }) {
   // "Actual" = jeszcze niesprzedane loty, zasilane z active_lots (patrz
   // app/api/sync-active/route.js + scripts/backfill-active.js) — osobna
   // tabela od "cars" (Archive), bo klucz naturalny to lot_id, nie VIN
-  // (patrz komentarz w supabase/schema.sql).
-  const isActiveView = sp.view === 'active';
+  // (patrz komentarz w supabase/schema.sql). Domyślny widok (brak parametru
+  // "view" w URL) to teraz Actual — trzeba jawnie wybrać ?view=archive.
+  const isActiveView = sp.view !== 'archive';
 
   // Statystyki cenowe tylko po wybraniu marki — bez sensu (i bez potrzeby
   // odpytywania bazy) dla domyślnego, niefiltrowanego widoku. Zawsze liczone
