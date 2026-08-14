@@ -10,6 +10,7 @@
     "lint": "eslint",
     "backfill": "node --env-file=.env.local scripts/backfill.js",
     "backfill:lot-id": "node --env-file=.env.local scripts/backfill-lot-id.js",
+    "backfill:active": "node --env-file=.env.local scripts/backfill-active.js",
     "import:calculator-data": "node --env-file=.env.local scripts/import-calculator-data.js",
     "import-daily": "node --env-file=.env.local scripts/import-daily.js",
     "seed-demo": "node --env-file=.env.local scripts/seed-demo-data.js"

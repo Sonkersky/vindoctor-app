@@ -9,7 +9,7 @@ import FavoriteButton from './FavoriteButton';
 import MileageValue from './MileageValue';
 import VinSearchForm from './VinSearchForm';
 import HomeGridAligner from './HomeGridAligner';
-import { listCars, getMakesAndModels, getLotCounts, getPriceStats } from '@/lib/queries';
+import { listCars, listActiveLots, getMakesAndModels, getLotCounts, getPriceStats } from '@/lib/queries';
 import { formatPrice } from '@/lib/format';
 import { getServerTranslator } from '@/lib/i18n/server';
 
@@ -146,10 +146,8 @@ function CarTile({ car, isActiveView, t }) {
         <Link href={`/lot/${encodeURIComponent(car.vin)}`} className="card-image-wrapper">
           <TileImageCarousel images={images} alt={title} />
           <div className="tile-badges">
-            {/* Widok "Actual" to na razie placeholder (te same dane co Archive,
-                patrz komentarz przy isActiveView w HomePage) — nie pokazujemy
-                tam plakietek statusu sprzedaży, bo te loty mają w tym widoku
-                udawać jeszcze niesprzedane. */}
+            {/* Widok "Actual" (active_lots) to loty jeszcze niesprzedane —
+                nie mają statusu sprzedaży, więc nie ma czego tu pokazać. */}
             {isActiveView ? null : isBuyNow ? (
               <span className="tile-status-pill buynow-badge">⚡ Sold by BUY NOW</span>
             ) : (
@@ -195,8 +193,10 @@ function CarTile({ car, isActiveView, t }) {
         </div>
         <div className="card-footer">
           <div className="price-box-inner">
-            <span className="price-label">{t('finalPrice')}</span>
-            <span className="price-value">{formatPrice(car)}</span>
+            <span className="price-label">{isActiveView ? t('currentBid') : t('finalPrice')}</span>
+            <span className="price-value">
+              {isActiveView && !car.purchase_price ? t('noBidsYet') : formatPrice(car)}
+            </span>
           </div>
           <Link href={`/lot/${encodeURIComponent(car.vin)}`} className="view-lot-btn">
             {t('viewLot')}
@@ -236,18 +236,19 @@ export default async function HomePage({ searchParams }) {
   };
   const page = Math.max(1, Number(sp.page) || 1);
 
-  // Placeholder pod przyszłe/aktywne loty (patrz rozmowa o planie kont i
-  // podziale Active/Archived) — na razie apicar.store nie daje nam danych o
-  // nadchodzących aukcjach (osobny, niepotwierdzony jeszcze dostęp/koszt), więc
-  // widok "Actual" pokazuje te same dane co "Archive", tylko bez plakietek
-  // statusu sprzedaży (patrz CarTile). Podmienimy na prawdziwe dane, jak tylko
-  // będzie dostęp do właściwego feedu.
+  // "Actual" = jeszcze niesprzedane loty, zasilane z active_lots (patrz
+  // app/api/sync-active/route.js + scripts/backfill-active.js) — osobna
+  // tabela od "cars" (Archive), bo klucz naturalny to lot_id, nie VIN
+  // (patrz komentarz w supabase/schema.sql).
   const isActiveView = sp.view === 'active';
 
   // Statystyki cenowe tylko po wybraniu marki — bez sensu (i bez potrzeby
-  // odpytywania bazy) dla domyślnego, niefiltrowanego widoku.
+  // odpytywania bazy) dla domyślnego, niefiltrowanego widoku. Zawsze liczone
+  // z danych historycznych ("cars"), nawet w widoku Actual — pokazują, za ile
+  // podobne auta faktycznie się sprzedawały, co jest przydatnym kontekstem
+  // przy przeglądaniu jeszcze trwających aukcji.
   const [{ cars, hasNextPage, lastPageInWindow }, makesModels, lotCounts, priceStats, { t }] = await Promise.all([
-    listCars(filters, page),
+    isActiveView ? listActiveLots(filters, page) : listCars(filters, page),
     getMakesAndModels(),
     getLotCounts(),
     filters.make ? getPriceStats(filters) : Promise.resolve({ min: null, max: null, avg: null, count: 0 }),
