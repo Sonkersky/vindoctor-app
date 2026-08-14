@@ -17,7 +17,10 @@ import { getServerTranslator } from '@/lib/i18n/server';
 // (nadal puste, sprawdzone na żywo), ALE getCarByVin (lib/queries.js) teraz
 // sam dokłada tu poprzedni wynik z "cars", gdy dany VIN wraca na aukcję po
 // "Not sold"/"ON APPROVAL" (patrz active_lots) — to jedyny scenariusz, w
-// którym ta sekcja realnie ma dziś co pokazać.
+// którym ta sekcja realnie ma dziś co pokazać. Poniżej w JSX sekcja jest
+// dodatkowo warunkowana na car.sale_history.length > 0 — pokazuje się
+// TYLKO gdy faktycznie jest co pokazać (auto miało wcześniej jakiś wynik),
+// zamiast zawsze z "No previous sale records found.".
 const SHOW_SALES_HISTORY = true;
 
 export async function generateMetadata({ params }) {
@@ -199,7 +202,9 @@ export default async function LotPage({ params }) {
 
         {/* PRICE & SPECS */}
         <div className="info-section">
-          <ClaimModal />
+          {/* Tylko Archive — Actual (car.isActiveLot) jeszcze nie ma finalnej
+              ceny/zakończonej aukcji, więc "zgłoś zakup" nie ma tu sensu. */}
+          {!car.isActiveLot && <ClaimModal />}
 
           <div className="price-box">
             <div className="price-box-top">
@@ -284,7 +289,7 @@ export default async function LotPage({ params }) {
       </div>
 
       {/* VIN SALES HISTORY */}
-      {SHOW_SALES_HISTORY && (
+      {SHOW_SALES_HISTORY && car.sale_history.length > 0 && (
         <div className="history-section">
           <div className="history-title">
             {t('salesHistoryTitle')}
@@ -302,22 +307,14 @@ export default async function LotPage({ params }) {
                 </tr>
               </thead>
               <tbody>
-                {car.sale_history.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} style={{ textAlign: 'center', color: '#64748b' }}>
-                      {t('noSalesRecords')}
-                    </td>
+                {car.sale_history.map((entry, idx) => (
+                  <tr key={idx}>
+                    <td>{formatDate(entry.sale_date)}</td>
+                    <td>{entry.base_site === 'iaai' ? 'IAAI' : 'COPART'}</td>
+                    <td>{entry.sale_status || 'N/A'}</td>
+                    <td className="price-past">{formatPrice({ purchase_price: entry.purchase_price })}</td>
                   </tr>
-                ) : (
-                  car.sale_history.map((entry, idx) => (
-                    <tr key={idx}>
-                      <td>{formatDate(entry.sale_date)}</td>
-                      <td>{entry.base_site === 'iaai' ? 'IAAI' : 'COPART'}</td>
-                      <td>{entry.sale_status || 'N/A'}</td>
-                      <td className="price-past">{formatPrice({ purchase_price: entry.purchase_price })}</td>
-                    </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
           </div>
