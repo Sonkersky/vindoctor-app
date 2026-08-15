@@ -1,54 +1,77 @@
-'use client';
-
-import { useState } from 'react';
 import Link from 'next/link';
-import { useLocale } from './i18n/LocaleContext';
 
-// Zakładki tylko dla typów, które faktycznie mają jakieś marki w danych —
-// apicar.store zwraca surowe angielskie wartości vehicle_type, nie
-// tłumaczymy ich (tak samo jak w filtrze bocznym "Vehicle Type").
-const TABS = ['Automobile', 'Motorcycle', 'ATV'];
+// Logotypy z Simple Icons (simpleicons.org) — CC0, zbiór SVG-ów marek
+// stworzony właśnie do identyfikacji marki na stronach trzecich (nie
+// scrapowane z przypadkowego źródła). GMC/Dodge/Lexus nie mają tam
+// swojego logo (biblioteka nie pokrywa wszystkich marek) — celowo pominięte
+// zamiast pokazywać placeholder.
+// makeParam — dokładna wartość kolumny "make" w naszej bazie (patrz
+// active_lot_makes) — bywa inna niż etykieta widoczna na karcie (np. "Range
+// Rover" pokazujemy, ale w danych to "Land Rover"; "Mercedes" -> "Mercedes-Benz").
+const BRANDS = [
+  { name: 'Alfa Romeo', slug: 'alfaromeo', makeParam: 'Alfa Romeo' },
+  { name: 'Aston Martin', slug: 'astonmartin', makeParam: 'Aston Martin' },
+  { name: 'Audi', slug: 'audi', makeParam: 'Audi' },
+  { name: 'Bentley', slug: 'bentley', makeParam: 'Bentley' },
+  { name: 'BMW', slug: 'bmw', makeParam: 'BMW' },
+  { name: 'Ferrari', slug: 'ferrari', makeParam: 'Ferrari' },
+  { name: 'Ford', slug: 'ford', makeParam: 'Ford' },
+  { name: 'Chevrolet', slug: 'chevrolet', makeParam: 'Chevrolet' },
+  { name: 'Jaguar', slug: 'jaguar', makeParam: 'Jaguar' },
+  { name: 'Lamborghini', slug: 'lamborghini', makeParam: 'Lamborghini' },
+  { name: 'Range Rover', slug: 'landrover', makeParam: 'Land Rover' },
+  { name: 'Lexus', slug: null, makeParam: 'Lexus' },
+  { name: 'Maserati', slug: 'maserati', makeParam: 'Maserati' },
+  { name: 'Mercedes-Benz', slug: 'mercedes', makeParam: 'Mercedes-Benz' },
+  { name: 'Porsche', slug: 'porsche', makeParam: 'Porsche' },
+  { name: 'Ram', slug: 'ram', makeParam: 'Ram' },
+  { name: 'Rolls-Royce', slug: 'rollsroyce', makeParam: 'Rolls-Royce' },
+  { name: 'Tesla', slug: 'tesla', makeParam: 'Tesla' },
+  { name: 'Volvo', slug: 'volvo', makeParam: 'Volvo' },
+].filter((b) => b.slug);
 
-function makeHref(make, vehicleType) {
-  const params = new URLSearchParams({ make });
-  if (vehicleType !== 'Automobile') params.set('vehicleType', vehicleType);
-  return `/?${params.toString()}`;
+function splitIntoRows(items) {
+  const rowA = [];
+  const rowB = [];
+  items.forEach((item, i) => (i % 2 === 0 ? rowA : rowB).push(item));
+  return [rowA, rowB];
 }
 
-export default function PopularMakes({ makes }) {
-  const { t } = useLocale();
-  const availableTabs = TABS.filter((tab) => (makes[tab] || []).length > 0);
-  const [activeTab, setActiveTab] = useState(availableTabs[0]);
-
-  if (availableTabs.length === 0) return null;
-
-  const activeMakes = makes[activeTab] || [];
-
+function BrandCard({ brand }) {
   return (
-    <section className="popular-makes-section">
-      <div className="popular-makes-header">
-        <h2 className="highlight-section-title">{t('popularMakes')}</h2>
-        <div className="popular-makes-tabs">
-          {availableTabs.map((tab) => (
-            <button
-              key={tab}
-              className={`popular-makes-tab ${tab === activeTab ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab)}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-      </div>
+    <Link href={`/?make=${encodeURIComponent(brand.makeParam)}`} className="brand-marquee-card" title={brand.name}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={`/logos/${brand.slug}.svg`} alt={brand.name} className="brand-marquee-logo" loading="lazy" />
+    </Link>
+  );
+}
 
-      <div className="popular-makes-grid">
-        {activeMakes.map((make) => (
-          <Link key={make} href={makeHref(make, activeTab)} className="make-card">
-            <span className="make-card-icon">{make.charAt(0).toUpperCase()}</span>
-            <span className="make-card-name">{make}</span>
-          </Link>
+function MarqueeRow({ items }) {
+  // Treść zduplikowana 2x + animacja translateX(0 -> -50%) w pętli — to
+  // standardowa sztuczka na niekończący się, płynny scroll bez JS: w
+  // momencie gdy pierwsza kopia w całości "wyjedzie" w lewo, druga kopia
+  // jest dokładnie w tym samym miejscu startowym, więc pętla jest niewidoczna.
+  return (
+    <div className="brand-marquee-row">
+      <div className="brand-marquee-track">
+        {items.map((brand, i) => (
+          <BrandCard key={`a-${i}`} brand={brand} />
+        ))}
+        {items.map((brand, i) => (
+          <BrandCard key={`b-${i}`} brand={brand} />
         ))}
       </div>
+    </div>
+  );
+}
+
+export default function PopularMakes() {
+  const [rowA, rowB] = splitIntoRows(BRANDS);
+
+  return (
+    <section className="popular-makes-section brand-marquee-section">
+      <MarqueeRow items={rowA} />
+      <MarqueeRow items={rowB} />
     </section>
   );
 }

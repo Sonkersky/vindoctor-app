@@ -1119,90 +1119,73 @@
     margin: 30px 0 0;
 }
 
-.popular-makes-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 14px;
-}
-
-.popular-makes-tabs {
-    display: flex;
-    gap: 6px;
-}
-
-.popular-makes-tab {
-    background: none;
-    border: 1px solid #334155;
-    color: #94a3b8;
-    padding: 6px 16px;
-    border-radius: 8px;
-    font-size: 0.85rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: color 0.2s, border-color 0.2s, background-color 0.2s;
-}
-
-.popular-makes-tab:hover {
-    color: #cbd5e1;
-    border-color: #475569;
-}
-
-.popular-makes-tab.active {
-    color: #38bdf8;
-    border-color: #38bdf8;
-    background-color: rgba(56, 189, 248, 0.08);
-}
-
-.popular-makes-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-    gap: 10px;
-}
-
-.make-card {
+/* Dwa rzędy logotypów, każdy przewija się osobno (lekko inne tempo dla
+   głębi) od prawej do lewej w nieskończoność — translateX 0 -> -50% na
+   ścieżce zawierającej treść zduplikowaną 2x, więc pętla jest niewidoczna.
+   Zatrzymanie na hover, żeby dało się kliknąć bez "gonienia" kursorem. */
+.brand-marquee-section {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    padding: 16px 8px;
-    background-color: rgba(30, 41, 59, 0.6);
-    border: 1px solid #334155;
-    border-radius: 10px;
-    text-decoration: none;
-    transition: border-color 0.2s, background-color 0.2s, transform 0.15s;
+    gap: 14px;
 }
 
-.make-card:hover {
-    border-color: #64748b;
-    background-color: rgba(30, 41, 59, 0.9);
-    transform: translateY(-2px);
+.brand-marquee-row {
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
+    mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
 }
 
-.make-card-icon {
+.brand-marquee-track {
+    display: flex;
+    gap: 16px;
+    width: max-content;
+    animation: brandMarqueeScroll 38s linear infinite;
+}
+
+.brand-marquee-row:nth-child(2) .brand-marquee-track {
+    animation-duration: 46s;
+}
+
+.brand-marquee-row:hover .brand-marquee-track {
+    animation-play-state: paused;
+}
+
+@keyframes brandMarqueeScroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+}
+
+.brand-marquee-card {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background-color: rgba(148, 163, 184, 0.12);
-    color: #94a3b8;
-    font-size: 1.1rem;
-    font-weight: 800;
+    flex-shrink: 0;
+    width: 130px;
+    height: 68px;
+    padding: 12px 18px;
+    background-color: rgba(30, 41, 59, 0.6);
+    border: 1px solid #334155;
+    border-radius: 10px;
+    transition: border-color 0.2s, background-color 0.2s;
 }
 
-.make-card-name {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #cbd5e1;
-    text-align: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.brand-marquee-card:hover {
+    border-color: #64748b;
+    background-color: rgba(30, 41, 59, 0.9);
+}
+
+.brand-marquee-logo {
     max-width: 100%;
+    max-height: 30px;
+    /* Zamienia oryginalne kolory logo (SVG z Simple Icons, różne wypełnienia)
+       na jednolitą, stonowaną, białą sylwetkę — dokładnie "zacieniowany"
+       wygląd z jednym spójnym stylem dla wszystkich marek naraz. */
+    filter: brightness(0) invert(1) opacity(0.55);
+    transition: filter 0.2s;
+}
+
+.brand-marquee-card:hover .brand-marquee-logo {
+    filter: brightness(0) invert(1) opacity(0.9);
 }
 
 @media (max-width: 900px) {
@@ -1211,7 +1194,6 @@
 
 @media (max-width: 800px) {
     .popular-makes-section { max-width: 100%; }
-    .popular-makes-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
 }
 
 /* ===== SEKCJE-ZAJAWKI "Buy Now Inventory" / "Motorcycles" (pod Actual) ===== */

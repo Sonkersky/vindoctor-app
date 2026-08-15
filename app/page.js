@@ -17,7 +17,6 @@ import {
   getPriceStats,
   getActiveLotsPreview,
   getActiveLotCounts,
-  getActiveLotMakes,
 } from '@/lib/queries';
 import { getServerTranslator } from '@/lib/i18n/server';
 
@@ -113,7 +112,6 @@ export default async function HomePage({ searchParams }) {
     buyNowPreview,
     motorcyclesPreview,
     activeLotCounts,
-    activeLotMakes,
   ] = await Promise.all([
     isActiveView ? listActiveLots(filters, page) : listCars(filters, page),
     getMakesAndModels(),
@@ -125,7 +123,6 @@ export default async function HomePage({ searchParams }) {
     isActiveView ? getActiveLotsPreview({ buyNowOnly: true }, 4) : Promise.resolve([]),
     isActiveView ? getActiveLotsPreview({ vehicleType: 'Motorcycle' }, 4) : Promise.resolve([]),
     isActiveView ? getActiveLotCounts() : Promise.resolve({ buyNow: 0, motorcycles: 0 }),
-    isActiveView ? getActiveLotMakes() : Promise.resolve({ Automobile: [], Motorcycle: [], ATV: [] }),
   ]);
 
   // "view" musi być częścią tego stringa (nie tylko filtry) — inaczej
@@ -219,7 +216,7 @@ export default async function HomePage({ searchParams }) {
             kolumny i te same reguły .car-grid (max-width:90%, gap). */}
         {isActiveView && (
           <>
-            <PopularMakes makes={activeLotMakes} />
+            <PopularMakes />
             <HighlightSection
               title={t('buyNowInventory')}
               count={activeLotCounts.buyNow}
