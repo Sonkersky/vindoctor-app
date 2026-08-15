@@ -671,4 +671,43 @@ as $$
   );
 $$;
 
+-- ============================================================
+-- "Popular makes" NA STRONIE GŁÓWNEJ (siatka marek, zakładki po typie pojazdu)
+-- ============================================================
+-- ZWYKŁE "select distinct vehicle_type, make" na 682k+ wierszach przekracza
+-- statement_timeout — Postgres NIE potrafi samodzielnie zamienić goły
+-- DISTINCT na "loose index scan" (mimo istniejącego indeksu
+-- idx_active_lots_vehicle_type_make_model), więc i tak skanuje/sortuje całą
+-- tabelę. Rekurencyjne CTE niżej to ręczny "index skip-scan" — dla każdej z
+-- (małej liczby) unikalnych par (vehicle_type, make) robi JEDEN skok po
+-- indeksie do NASTĘPNEJ pary (WHERE (...) > (poprzednia para)), więc koszt
+-- zależy od liczby unikalnych marek, nie od liczby wierszy w tabeli.
+create or replace view active_lot_makes as
+with recursive t as (
+  (
+    select vehicle_type, make
+    from active_lots
+    where make is not null and vehicle_type in ('Automobile', 'Motorcycle', 'ATV')
+    order by vehicle_type, make
+    limit 1
+  )
+  union all
+  (
+    select next_row.vehicle_type, next_row.make
+    from t,
+    lateral (
+      select vehicle_type, make
+      from active_lots
+      where make is not null
+        and vehicle_type in ('Automobile', 'Motorcycle', 'ATV')
+        and (vehicle_type, make) > (t.vehicle_type, t.make)
+      order by vehicle_type, make
+      limit 1
+    ) next_row
+  )
+)
+select * from t;
+
+grant select on active_lot_makes to anon, authenticated;
+
 grant execute on function get_active_lot_counts to anon, authenticated;
