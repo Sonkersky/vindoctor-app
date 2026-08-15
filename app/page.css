@@ -1117,6 +1117,18 @@
     grid-column: 2;
     max-width: 90%;
     margin: 30px 0 0;
+    /* Bez tego karuzela logotypów (bardzo szeroka ścieżka, .brand-marquee-
+       track: width:max-content) rozpychała CAŁĄ stronę w bok — domyślny
+       "automatic minimum size" elementu siatki to szerokość jego
+       najszerszej zawartości, nie 0, więc grid próbował dać tej kolumnie
+       tyle miejsca, ile potrzebowałaby nieprzycięta karuzela (~2350px),
+       zamiast trzymać się swojego 1fr. min-width:0 wymusza normalne
+       kurczenie się do przydzielonej kolumny; overflow:hidden to
+       dodatkowe zabezpieczenie tego samego mechanizmu. Zgłoszone jako
+       "strona się rozjechała, kafelki urosły" — to był efekt uboczny tego
+       poziomego przepełnienia, nie realna zmiana rozmiaru kafelków. */
+    min-width: 0;
+    overflow: hidden;
 }
 
 /* Dwa rzędy logotypów, każdy przewija się osobno (lekko inne tempo dla
