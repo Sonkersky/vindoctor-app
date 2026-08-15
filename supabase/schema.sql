@@ -74,10 +74,15 @@ create index if not exists idx_cars_state       on cars (state);
 -- Dopisany po znalezieniu prawdziwej przyczyny wolnych/błędnych odpowiedzi
 -- pod obciążeniem: sale_status w ogóle nie miał indeksu, więc KAŻDE
 -- zapytanie (strona główna, stopka, filtry) robiło pełny skan całej,
--- rosnącej codziennie tabeli. Kolumny w kolejności dopasowanej do
--- najczęstszego zapytania (WHERE sale_status = 'Sold' ORDER BY year, sale_date).
-create index if not exists idx_cars_sale_status_year_sale_date
-  on cars (sale_status, year desc, sale_date desc);
+-- rosnącej codziennie tabeli. Kolejność kolumn dopasowana do najczęstszego
+-- zapytania: WHERE sale_status IN (...) ORDER BY sale_date, year — sale_date
+-- PIERWSZE (nie year), bo sortowanie po roku jako pierwszym kryterium
+-- sprawiało, że Archive stronę 1 zawsze zajmowały auta z najwyższym
+-- rocznikiem, nawet sprzedane tygodnie temu, zamiast tego, co faktycznie
+-- właśnie doszło (zgłoszone: "w archiwalnych nic nowego").
+drop index if exists idx_cars_sale_status_year_sale_date;
+create index if not exists idx_cars_sale_status_sale_date_year
+  on cars (sale_status, sale_date desc, year desc);
 create index if not exists idx_cars_sale_date   on cars (sale_date desc);
 
 -- Pod widok car_makes_models (DISTINCT make/model) — bez tego Postgres musi
