@@ -91,7 +91,18 @@ function AuthModal({ initialTab, onClose }) {
       }
       onClose();
     } else {
-      const { error: signUpError } = await supabase.auth.signUp({ email, password });
+      // Bez tego link w mailu potwierdzającym używał "Site URL" ustawionego
+      // w panelu Supabase (Authentication -> URL Configuration) — a to wciąż
+      // było domyślne localhost:3000 z czasów developmentu, więc każdy link
+      // aktywacyjny prowadził tam niezależnie od tego, skąd ktoś się
+      // rejestrował. window.location.origin naprawia to samoczynnie zarówno
+      // na produkcji, jak i lokalnie — trzeba tylko dopisać oba adresy do
+      // listy "Redirect URLs" w Supabase (patrz instrukcja).
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: window.location.origin },
+      });
       setBusy(false);
       if (signUpError) {
         setError(signUpError.message);
