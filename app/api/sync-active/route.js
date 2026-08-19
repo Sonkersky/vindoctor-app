@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { fetchActiveLotsUpdatePage, fetchDeletedLots } from '@/lib/apicar';
 import { upsertActiveLotsBatch, deleteActiveLotsByLotIds } from '@/lib/syncActive';
 
@@ -101,6 +102,13 @@ export async function GET(request) {
     errors.push({ stage: 'deleted', message: err.message });
     stoppedEarly = true;
   }
+
+  // Nie "warmujemy" tu z góry wszystkich kawałków sitemapy (jak robi to
+  // codzienny /api/sync dla danych historycznych) — przy cadence co
+  // 30-60 min to byłoby zbędne obciążenie bazy 24x/dobę. Samo oznaczenie
+  // jako nieaktualne wystarczy: następne wejście Google na dany kawałek i
+  // tak odpyta bazę na nowo (patrz revalidate w app/sitemap.js).
+  revalidateTag('sitemap', { expire: 0 });
 
   return NextResponse.json({
     ok: errors.length === 0,

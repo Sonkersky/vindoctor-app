@@ -85,6 +85,12 @@ create index if not exists idx_cars_sale_status_sale_date_year
   on cars (sale_status, sale_date desc, year desc);
 create index if not exists idx_cars_sale_date   on cars (sale_date desc);
 
+-- Pod sitemapę (app/sitemap.js): WHERE sale_status IN (...) ORDER BY vin —
+-- bez tego dedykowanego indeksu ta konkretna kombinacja (dopisana wraz z
+-- dodaniem "Not sold"/"ON APPROVAL" do sitemapy) zajmowała 20+ sekund na
+-- kawałek zamiast skorzystać z indeksu.
+create index if not exists idx_cars_sale_status_vin on cars (sale_status, vin);
+
 -- Pod widok car_makes_models (DISTINCT make/model) — bez tego Postgres musi
 -- skanować i sortować całą (rosnącą) tabelę za każdym razem, gdy cache
 -- (5 min) wygaśnie, co przy 50k+ wierszy zaczęło przekraczać statement_timeout.
