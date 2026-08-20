@@ -538,9 +538,15 @@ alter table profiles add column if not exists is_admin boolean not null default 
 -- stronie nie pisze do tabeli bezpośrednio, tylko przez nasz endpoint (który
 -- przy okazji wysyła mailowe powiadomienie), więc nie trzeba otwierać
 -- zapisu wprost z przeglądarki.
+-- car_vin celowo BEZ "references cars(vin)" — lead może dotyczyć auta,
+-- które istnieje TYLKO w active_lots (98,6% lotów na stronie, patrz
+-- komentarz przy getCarByVin w lib/queries.js). Wcześniejszy FK do samej
+-- "cars" odrzucał zapis niemal każdego leada po dodaniu zakładki Actual
+-- (constraint violation, po cichu maskowane jako "Something went wrong"
+-- w BuyLeadModal.js).
 create table if not exists leads (
   id         bigint generated always as identity primary key,
-  car_vin    text not null references cars (vin) on delete cascade,
+  car_vin    text not null,
   name       text not null,
   phone      text not null,
   email      text,

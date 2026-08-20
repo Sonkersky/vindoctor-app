@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/supabaseAdmin';
+import { getCarByVin } from '@/lib/queries';
 import { sendLeadNotificationEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
@@ -21,15 +22,15 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
   }
 
+  // getCarByVin() sprawdza OBIE tabele (cars + active_lots) — samo "cars"
+  // (jak było tu wcześniej) zwracało 404 dla 98,6% lotów na stronie, bo
+  // niemal wszystkie aktywne aukcje istnieją TYLKO w active_lots (patrz
+  // komentarz przy getCarByVin w lib/queries.js) — realnie odrzucało to
+  // prawie każdy formularz "Buy This Car" po dodaniu zakładki Actual.
   const supabase = getSupabaseClient();
+  const car = await getCarByVin(vin).catch(() => null);
 
-  const { data: car, error: carError } = await supabase
-    .from('cars')
-    .select('vin, title, year, make, model')
-    .eq('vin', vin)
-    .maybeSingle();
-
-  if (carError || !car) {
+  if (!car) {
     return NextResponse.json({ error: 'Vehicle not found.' }, { status: 404 });
   }
 
