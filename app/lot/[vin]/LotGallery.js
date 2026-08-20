@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import FavoriteButton from '../../FavoriteButton';
 
 export default function LotGallery({ galleryItems, photoUrls, vin, title }) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -86,6 +87,10 @@ export default function LotGallery({ galleryItems, photoUrls, vin, title }) {
   return (
     <div className="gallery-section">
       <div className="main-image-container">
+        <div className="gallery-favorite-btn">
+          <FavoriteButton vin={vin} />
+        </div>
+
         <button className="nav-arrow prev" onClick={prevImage}>
           ❮
         </button>

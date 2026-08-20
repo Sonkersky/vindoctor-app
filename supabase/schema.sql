@@ -286,10 +286,15 @@ create trigger trg_profiles_updated_at
   for each row execute function set_updated_at();
 
 -- Obserwowane loty ("serduszko" na kafelku).
+-- car_vin celowo BEZ "references cars(vin)" — patrz identyczne uzasadnienie
+-- przy tabeli "leads": auto może istnieć TYLKO w active_lots (98,6% lotów
+-- na stronie). FK do samej "cars" odrzucał insert (constraint violation),
+-- co przy optymistycznej aktualizacji w FavoritesProvider.js wyglądało jak
+-- serduszko, które "od razu się odznacza" po kliknięciu.
 create table if not exists favorites (
   id         bigint generated always as identity primary key,
   user_id    uuid not null references auth.users (id) on delete cascade,
-  car_vin    text not null references cars (vin) on delete cascade,
+  car_vin    text not null,
   created_at timestamptz not null default now(),
   unique (user_id, car_vin)
 );
