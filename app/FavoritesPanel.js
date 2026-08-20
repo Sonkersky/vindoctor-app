@@ -8,8 +8,18 @@ import { formatPrice, formatOdometer } from '@/lib/format';
 import { useFavorites } from './FavoritesContext';
 import { useLocale } from './i18n/LocaleContext';
 
-const SELECT_COLUMNS =
+const CAR_COLUMNS =
   'vin, title, year, make, model, base_site, sale_status, purchase_price, odometer, odometer_index, link_img_small, link_img_hd';
+
+// active_lots nie ma purchase_price/sale_status — current_bid to jej
+// odpowiednik ceny (patrz activeRowToCar w lib/queries.js, ten sam
+// mapping powtórzony tu, bo to komponent kliencki i nie może zaimportować
+// server-only lib/queries.js, które łączy się przez klucz service_role).
+const ACTIVE_LOT_COLUMNS = 'vin, title, year, make, model, base_site, current_bid, odometer, odometer_index, link_img_small, link_img_hd';
+
+function normalizeActiveLot(row) {
+  return { ...row, sale_status: null, purchase_price: row.current_bid };
+}
 
 export default function FavoritesPanel({ onClose }) {
   const { favorites, toggleFavorite } = useFavorites();
@@ -36,15 +46,25 @@ export default function FavoritesPanel({ onClose }) {
     let cancelled = false;
     setLoading(true);
     const supabase = createClient();
-    supabase
-      .from('cars')
-      .select(SELECT_COLUMNS)
-      .in('vin', vins)
-      .then(({ data }) => {
-        if (cancelled) return;
-        setCars(data || []);
-        setLoading(false);
-      });
+
+    // Ulubione dotyczą w większości aut, które istnieją TYLKO w active_lots
+    // (patrz getCarByVin w lib/queries.js — 98,6% lotów na stronie) — samo
+    // "cars" (jak było tu wcześniej) zwracało puste wyniki dla nich, więc
+    // panel wyglądał jakby ulubione w ogóle się nie zapisały, mimo że
+    // serduszko było zaznaczone. Sprawdzamy obie tabele; gdy VIN jest w
+    // obu (auto wróciło na aukcję po "Not sold"), wygrywa świeższy wpis
+    // z active_lots.
+    Promise.all([
+      supabase.from('cars').select(CAR_COLUMNS).in('vin', vins),
+      supabase.from('active_lots').select(ACTIVE_LOT_COLUMNS).in('vin', vins),
+    ]).then(([carsRes, activeRes]) => {
+      if (cancelled) return;
+      const byVin = new Map();
+      for (const row of carsRes.data || []) byVin.set(row.vin, row);
+      for (const row of activeRes.data || []) byVin.set(row.vin, normalizeActiveLot(row));
+      setCars(vins.map((vin) => byVin.get(vin)).filter(Boolean));
+      setLoading(false);
+    });
 
     return () => {
       cancelled = true;

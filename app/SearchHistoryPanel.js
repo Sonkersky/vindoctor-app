@@ -71,13 +71,19 @@ export default function SearchHistoryPanel({ onClose }) {
         const vins = [...new Set(rows.filter((r) => r.search_type === 'vin').map((r) => r.query))];
         if (vins.length === 0) return;
 
-        const { data: cars } = await supabase
-          .from('cars')
-          .select('vin, base_site, link_img_small, link_img_hd')
-          .in('vin', vins);
-        if (cancelled || !cars) return;
+        // Jak w FavoritesPanel.js — VIN z historii wyszukiwania w większości
+        // istnieje TYLKO w active_lots, samo "cars" zostawiało miniaturkę
+        // pustą dla niemal każdego wpisu.
+        const [{ data: cars }, { data: activeLots }] = await Promise.all([
+          supabase.from('cars').select('vin, base_site, link_img_small, link_img_hd').in('vin', vins),
+          supabase.from('active_lots').select('vin, base_site, link_img_small, link_img_hd').in('vin', vins),
+        ]);
+        if (cancelled) return;
 
-        setCarsByVin(Object.fromEntries(cars.map((c) => [c.vin, c])));
+        const byVin = {};
+        for (const c of cars || []) byVin[c.vin] = c;
+        for (const c of activeLots || []) byVin[c.vin] = c;
+        setCarsByVin(byVin);
       });
     return () => {
       cancelled = true;
