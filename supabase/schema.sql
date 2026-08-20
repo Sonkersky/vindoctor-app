@@ -656,10 +656,33 @@ create policy "active_lots_public_read" on active_lots for select using (true);
 -- Wspiera domyślne sortowanie widoku Actual (vehicle_type='Automobile',
 -- order by auction_date) i listing "Buy Now" (ten sam vehicle_type +
 -- is_buynow=true) bez pełnego skanu 675k+ wierszy.
-create index if not exists idx_active_lots_vehicle_type_auction_date
-  on active_lots (vehicle_type, auction_date);
 create index if not exists idx_active_lots_vehicle_type_is_buynow
   on active_lots (vehicle_type, is_buynow);
+
+-- Znalezione na żywo: filtr "auction_date is null OR auction_date >= now()"
+-- (bezpiecznik na przeterminowane loty, patrz lib/queries.js
+-- applyActiveFilters) w połączeniu z ORDER BY auction_date na
+-- vehicle_type='Automobile' (większość z 700k+ wierszy active_lots) dawał
+-- 14+ sekund na zapytanie — OR nie daje się sprowadzić do prostego zakresu
+-- po jednej kolumnie, więc Postgres i tak skanował/sortował ręcznie.
+--
+-- Próba naprawy przez kolumnę wyliczaną (auction_date_sort, GENERATED ALWAYS
+-- ... STORED) wywaliła produkcyjną bazę DWA razy — taki ALTER TABLE robi
+-- pełny rewrite wszystkich 700k+ wierszy na raz, co wygenerowało falę WAL
+-- przekraczającą wolne miejsce na dysku ("PANIC: could not write to file
+-- pg_wal/... No space left on device"). Porzucone jako zbyt ryzykowne.
+--
+-- Zamiast tego: warunek OR w kodzie zastąpiony zwykłym ">= teraz" BEZ OR-a
+-- (patrz applyActiveFilters — loty z auction_date=NULL po prostu nie
+-- pokazują się w "Actual" dopóki apicar.store nie przypisze im daty; i tak
+-- lądowały na końcu sortowania ASC, więc realnie nic nie tracimy). Taki
+-- warunek jest w pełni indeksowalny zwykłym B-tree indeksem, bez żadnej
+-- nowej kolumny i bez przepisywania tabeli — sam CREATE INDEX buduje tylko
+-- dodatkową strukturę obok tabeli (dużo lżej niż STORED generated column,
+-- która modyfikuje same wiersze), ale wciąż raz skanuje całą tabelę, więc
+-- lepiej odpalać go w spokojnym momencie, nie w środku kolejnego kryzysu.
+create index if not exists idx_active_lots_vehicle_type_auction_date_year
+  on active_lots (vehicle_type, auction_date, year desc);
 
 -- Liczniki do nowych kafelków-zajawek na stronie głównej — jedna funkcja
 -- zamiast dwóch osobnych count:'exact' zapytań przez PostgREST (patrz
