@@ -202,7 +202,7 @@ export default function AccountBar({ variant = 'topbar' }) {
         item.href ? (
           <Link key={item.key} href={item.href} className="account-bar-btn" aria-label={item.label}>
             {item.icon}
-            <span>{item.label}</span>
+            <span className="account-bar-btn-label">{item.label}</span>
           </Link>
         ) : (
           <button
@@ -213,7 +213,7 @@ export default function AccountBar({ variant = 'topbar' }) {
             aria-label={item.locked ? `${item.label} (${t('requiresLogin')})` : item.label}
           >
             {item.icon}
-            <span>{item.label}</span>
+            <span className="account-bar-btn-label">{item.label}</span>
             {item.locked && (
               <span className="account-bar-lock">
                 <IconLock />
