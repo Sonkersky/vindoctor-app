@@ -118,6 +118,114 @@
     gap: 16px;
 }
 
+/* ===== MENU/FILTRY NA TELEFONIE: panele wysuwane z lewej ===== */
+/* MobileSidebarNav.js decyduje w JS (matchMedia), czy w ogóle wyrenderować
+   zakładki + panel (portal do document.body) — na desktopie Menu/Filtry
+   renderują się wprost w .sidebar-column, bez żadnego z poniższych, więc
+   CSS tutaj dotyczy WYŁĄCZNIE stanu mobilnego (stąd wszystko od razu w
+   @media, bez potrzeby zerowania na desktopie). */
+@media (max-width: 900px) {
+    .mobile-sidebar-tabs {
+        display: flex;
+        gap: 10px;
+    }
+
+    .mobile-sidebar-tab {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px;
+        background-color: rgba(15, 23, 42, 0.95);
+        border: 1px solid #334155;
+        border-radius: 12px;
+        color: #e2e8f0;
+        font-weight: 700;
+        font-size: 0.9rem;
+        cursor: pointer;
+    }
+
+    .mobile-sidebar-tab:hover {
+        border-color: #38bdf8;
+    }
+
+    .mobile-drawer-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background-color: rgba(0, 0, 0, 0.6);
+        z-index: 2000;
+    }
+
+    /* position:fixed + transform poza ekran w spoczynku, wjeżdża po dodaniu
+       klasy .mobile-drawer-open. Szerokość: min(85vw,320px) — węższe
+       telefony nie tracą całego ekranu, szersze nie dostają absurdalnie
+       szerokiego panelu. */
+    .mobile-drawer-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100dvh;
+        width: min(85vw, 320px);
+        background-color: #0f172a;
+        border-right: 1px solid #334155;
+        padding: 16px;
+        overflow-y: auto;
+        z-index: 2001;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+    }
+
+    .mobile-drawer-panel.mobile-drawer-open {
+        transform: translateX(0);
+    }
+
+    .mobile-drawer-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #334155;
+        font-weight: 700;
+        font-size: 1rem;
+        color: #f8fafc;
+    }
+
+    .mobile-drawer-close {
+        background: none;
+        border: 1px solid #334155;
+        color: #cbd5e1;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        line-height: 1;
+    }
+
+    .mobile-drawer-close:hover {
+        border-color: #f87171;
+        color: #f87171;
+    }
+
+    /* .account-sidebar-title ("Menu") jest zbędne wewnątrz panelu — ten sam
+       tytuł już pokazuje .mobile-drawer-header, z przyciskiem zamykania. */
+    .mobile-drawer-panel .account-sidebar-title {
+        display: none;
+    }
+
+    /* .sidebar-filters ma na desktopie position:sticky — w panelu wysuwanym
+       zbędne, box już jest position:fixed piętro wyżej. */
+    .mobile-drawer-panel .sidebar-filters,
+    .mobile-drawer-panel .account-sidebar {
+        position: static;
+    }
+}
+
 /* Kafelek Actual/Archive — placeholder na przyszłe/aktywne loty (na razie
    pokazuje te same dane co Archive, bez plakietek statusu sprzedaży —
    patrz komentarz w app/page.js przy isActiveView). */
