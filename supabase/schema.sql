@@ -751,3 +751,60 @@ select * from t;
 grant select on active_lot_makes to anon, authenticated;
 
 grant execute on function get_active_lot_counts to anon, authenticated;
+
+-- ============================================================
+-- GRANICE KUBEŁKÓW SITEMAPY (app/sitemap.js) — NTILE, bez OFFSET-a
+-- ============================================================
+-- Kontekst: Google Search Console → Mapy witryn pokazywał "Nie udało się
+-- pobrać" dla KAŻDEGO pliku sitemap/*.xml — to była realna przyczyna
+-- zgłoszonego "w ogóle się nie wyświetlamy w Google". Zmierzone na żywo:
+-- dotychczasowe stronicowanie offset+limit brało 8-30s dla środkowych
+-- kawałków active_lots (700k+ wierszy), a przy głębszym offsecie (~600k)
+-- kończyło się błędem 500 po 30+ sekundach — Postgres musi pominąć N
+-- wierszy zanim zwróci wynik, więc koszt rośnie z głębokością, niezależnie
+-- od tego, czy SELECT ogranicza się tylko do "vin" (sprawdzone: pomaga,
+-- ale nie usuwa problemu).
+--
+-- Próba naprawy przez zakres PREFIKSU VIN-u (np. "gte VIN LT NASTĘPNY")
+-- też zawiodła — realny rozkład VIN-ów jest silnie nierówny (sam prefiks
+-- "1G" to blisko 57 000 z ~700k wierszy active_lots — więcej niż limit
+-- protokołu sitemap 50 000/plik), więc "gorące" prefiksy przepełniałyby
+-- pojedynczy kawałek niezależnie od tego, jak drobno dzielimy zakres
+-- wartości.
+--
+-- NTILE (wewnątrz Postgresa, bez OFFSET-a w ogóle) dzieli wiersze na
+-- N grup możliwie równych CO DO LICZBY WIERSZY, niezależnie od tego, jak
+-- nierówno realne VIN-y rozkładają się leksykograficznie — jeden
+-- sekwencyjny skan+sort, wywoływany rzadko (cache'owany 24h w
+-- app/sitemap.js, ten sam rytm co codzienna synchronizacja).
+create or replace function get_sitemap_boundaries(p_table text, p_chunks int)
+returns table(chunk_index int, start_vin text)
+language plpgsql
+stable
+as $$
+begin
+  if p_table = 'cars' then
+    return query
+      select (bucket - 1)::int, min(vin)::text
+      from (
+        select vin, ntile(p_chunks) over (order by vin) as bucket
+        from cars
+        where sale_status in ('Sold', 'Not sold', 'ON APPROVAL')
+      ) t
+      group by bucket
+      order by bucket;
+  else
+    return query
+      select (bucket - 1)::int, min(vin)::text
+      from (
+        select vin, ntile(p_chunks) over (order by vin) as bucket
+        from active_lots
+        where vin is not null
+      ) t
+      group by bucket
+      order by bucket;
+  end if;
+end;
+$$;
+
+grant execute on function get_sitemap_boundaries(text, int) to anon, authenticated, service_role;
