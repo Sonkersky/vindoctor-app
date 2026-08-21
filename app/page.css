@@ -1082,13 +1082,43 @@
     .main-layout { grid-template-columns: 1fr; }
     .sidebar-filters { position: static; }
     .car-grid { grid-template-columns: repeat(2, 1fr); }
+    /* Dymek "Wymaga zalogowania" (patrz .account-sidebar-tooltip) zakłada,
+       że po prawej stronie menu jest reszta strony (prawdziwe tylko przy
+       dwukolumnowym układzie desktopowym) — poniżej 900px menu jest już na
+       pełną szerokość, więc dymek wypychał całą stronę w bok mimo
+       visibility:hidden w spoczynku (position:absolute i tak liczy się do
+       scrollWidth). Kłódka sama w sobie wystarczająco jasno sygnalizuje
+       "zaloguj się", a hover i tak nie ma realnego odpowiednika na
+       ekranie dotykowym. */
+    .account-sidebar-tooltip { display: none; }
     /* .main-layout ma tu tylko 1 kolumnę — grid-column:2 (patrz wyżej)
-       wskazywałoby na nieistniejącą drugą kolumnę. */
-    .highlight-section { grid-column: 1; }
+       wskazywałoby na nieistniejącą drugą kolumnę. Reset .highlight-section
+       jest NIŻEJ (patrz przy ".popular-makes-section { grid-column: 1; }"),
+       bo tutaj, PRZED właściwą regułą .highlight-section (zdefiniowaną
+       dalej w pliku), i tak przegrywał w kaskadzie z późniejszym,
+       bezwarunkowym grid-column:2 — mimo pasującego media query, w ogóle
+       się nie stosował (potwierdzone na żywo: getComputedStyle pokazywało
+       "2" mimo @media (max-width:900px) aktywnego). Stąd na telefonie
+       .main-layout dostawał niejawną drugą kolumnę (dopasowaną do treści
+       highlight-section) zamiast trzymać się 1fr — to była realna
+       przyczyna zgłoszonego "strona się sypie na telefonie". */
 }
 
 /* ===== TELEFONY ===== */
 @media (max-width: 600px) {
+    /* .logo-img ma na sztywno height:90px — przy stałym proporcjach obrazka
+       (4:1) to zawsze ~366px szerokości, niezależnie od szerokości ekranu.
+       Na wąskich telefonach (~360-390px) to WIĘCEJ niż dostępna szerokość
+       kontenera, dając ok. 11px poziomego przewijania całej strony —
+       ostatni, najmniejszy udział w zgłoszonym "strona się sypie na
+       telefonie" (reszta to dwie kolumny zamiast jednej, patrz wyżej).
+       max-width:100% + height:auto skaluje logo w dół razem z zachowaniem
+       proporcji, zamiast trzymać sztywną wysokość. */
+    .logo-img {
+        max-width: 100%;
+        height: auto;
+    }
+
     .top-search-row {
         grid-template-columns: 1fr;
     }
@@ -1224,6 +1254,17 @@
 .highlight-section:last-of-type {
     /* Odstęp od stopki (zgłoszone: kafelki z motocyklami zbyt blisko). */
     margin-bottom: 40px;
+}
+
+@media (max-width: 900px) {
+    /* MUSI być PO bezwarunkowej regule .highlight-section (grid-column:2)
+       wyżej — CSS o równej specyficzności rozstrzyga kolejność w pliku, nie
+       to, czy reguła jest w @media. Ta sama reguła umieszczona wcześniej w
+       pliku (przed base rule) w ogóle się nie stosowała, mimo pasującego
+       media query — potwierdzone na żywo (getComputedStyle nadal "2").
+       .main-layout dostawał przez to niejawną drugą kolumnę na telefonie
+       (realna przyczyna zgłoszonego "strona się sypie na telefonie"). */
+    .highlight-section { grid-column: 1; }
 }
 
 .highlight-section-header {

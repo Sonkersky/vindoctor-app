@@ -654,5 +654,65 @@ body::before {
         top: 10px;
         right: 10px;
         gap: 6px;
+        /* Bez max-width ten fixed, position:flex pasek sam siebie mierzy
+           "shrink-to-fit" od pełnej treści (~440px, patrz niżej), nie od
+           szerokości ekranu — flex-wrap sam w sobie nic by tu nie dał bez
+           twardego ograniczenia szerokości, do którego ma się zawinąć. */
+        max-width: calc(100vw - 20px);
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    /* .account-bar (Favorites/My Settings/Search History — pokazywany na
+       każdej stronie poza "/") ląduje NIŻEJ, w drugim rzędzie, żeby Log
+       in/Sign up i przełącznik PL/EN (ważniejsze, zawsze potrzebne) zawsze
+       zmieściły się w pierwszym, widocznym rzędzie — bez tego wszystkie
+       trzy elementy walczyły o jeden rząd i konto wypychało resztę poza
+       lewą krawędź ekranu (zgłoszone jako "strona się sypie na
+       telefonie"). */
+    .account-bar {
+        order: 3;
+        margin-top: 4px;
+    }
+
+    /* .top-right-bar zajmuje teraz dwa rzędy na stronach z .account-bar
+       (każda poza "/") — bez dodatkowego odstępu drugi rząd (ikony
+       Favorites/Settings/History) nachodził na logo DOCTOR.VIN pod spodem
+       (oba position:fixed nad treścią vs. logo w normalnym przepływie).
+       :has() ogranicza to tylko do stron, gdzie ten drugi rząd faktycznie
+       istnieje — na "/" (bez .account-bar, patrz HIDDEN_TOPBAR_PATHS w
+       AccountBar.js) logo zostaje przy swoim normalnym odstępie. */
+    body:has(.account-bar) .header-logo {
+        margin-top: 95px;
+    }
+
+    /* .account-bar (Favorites/My Settings/Search History, patrz AccountBar.js
+       wariant "topbar" — pokazywany na KAŻDEJ stronie poza "/") liczył z
+       widocznymi podpisami tekstowymi obok ikon, razem z auth-widget i
+       przełącznikiem PL/EN dając ~700px szerokości. .top-right-bar jest
+       position:fixed, liczony od prawej krawędzi viewportu — na telefonie
+       (~360-430px) większość tego paska wypadała poza lewą krawędź ekranu,
+       częściowo nachodząc na nagłówek (zgłoszone jako "strona się sypie na
+       telefonie", potwierdzone na żywo: getComputedStyle pokazywał
+       left: -340px). Ukrycie podpisów zostawia same ikony — te same
+       funkcje (kliknięcie dalej otwiera panel/link), dużo węziej. */
+    .account-bar-btn-label {
+        display: none;
+    }
+
+    .account-bar-btn {
+        padding: 0 6px;
+    }
+
+    .account-bar {
+        gap: 2px;
+        padding: 5px 6px;
+    }
+
+    /* Dymek "Requires login" / "Log out (email)" zakładał hover, którego i
+       tak nie ma na ekranie dotykowym — position:absolute i tak liczyłby
+       się do szerokości strony, gdyby kiedyś trafił poza .top-right-bar. */
+    .account-bar-tooltip {
+        display: none;
     }
 }
