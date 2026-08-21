@@ -3,6 +3,7 @@ import './page.css';
 import FilterSidebar from './FilterSidebar';
 import ActiveArchiveToggle from './ActiveArchiveToggle';
 import AccountBar from './AccountBar';
+import MobileSidebarNav from './MobileSidebarNav';
 import PaginationBar from './PaginationBar';
 import CarTile from './CarTile';
 import VinSearchForm from './VinSearchForm';
@@ -157,9 +158,11 @@ export default async function HomePage({ searchParams }) {
       {/* MAIN LAYOUT */}
       <div className="main-layout">
         <div className="sidebar-column">
-          <AccountBar variant="sidebar" />
-          <ActiveArchiveToggle isActiveView={isActiveView} filtersQueryString={filtersQueryString} t={t} />
-          <FilterSidebar makesModels={makesModels} initialFilters={{ ...filters, page: String(page) }} />
+          <MobileSidebarNav
+            menu={<AccountBar variant="sidebar" />}
+            viewToggle={<ActiveArchiveToggle isActiveView={isActiveView} filtersQueryString={filtersQueryString} t={t} />}
+            filters={<FilterSidebar makesModels={makesModels} initialFilters={{ ...filters, page: String(page) }} />}
+          />
         </div>
 
         {/* VEHICLES GRID */}
