@@ -1,6 +1,6 @@
 import { unstable_cache } from 'next/cache';
 import { getSupabaseClient } from '@/lib/db';
-import { SITE_URL, SITEMAP_CHUNK_SIZE, MAX_SITEMAP_CHUNKS, CARS_SITEMAP_CHUNKS } from '@/lib/seo';
+import { SITE_URL, MAX_SITEMAP_CHUNKS, CARS_SITEMAP_CHUNKS, ACTIVE_LOTS_SITEMAP_CHUNKS } from '@/lib/seo';
 
 // Bez tego Next próbuje wygenerować (i odpytać bazę) każdy kawałek sitemapy
 // przy KAŻDYM `next build`/deployu — dla dziesiątek tysięcy wierszy to
@@ -20,58 +20,86 @@ function isValidVin(vin) {
   return Boolean(vin) && vin.length === 17;
 }
 
-// Zaobserwowane na produkcji: pierwsze zapytanie do tego zakresu po dłuższej
-// przerwie bywa wolne (Postgres "rozgrzewa" cache) i czasem przekracza
-// statement_timeout, kolejne są szybkie. Zamiast odpytywać bazę przy KAŻDYM
-// wejściu Google (i ryzykować akurat to jedno wolne zapytanie), cache'ujemy
-// wynik.
-//
-// revalidate ustawiony celowo DŁUGO (25h, z zapasem ponad dobowy cykl
-// synchronizacji) — 1h okazało się za krótkie: cache wygasał w ciągu dnia
-// i Google potrafił trafić na moment tuż po wygaśnięciu, czyli dokładnie w
-// to samo zimne zapytanie, któremu cache miał zapobiegać. Świeżość danych
-// (żeby NIE serwować tego samego przez 25h mimo nowych lotów) zapewnia
-// zamiast tego revalidateTag('sitemap') wywoływane po każdej synchronizacji
-// (patrz app/api/sync/route.js i app/api/sync-active/route.js) — to wymusza
-// świeże zapytanie, niezależnie od tego, czy naturalny czas cache'a jeszcze
-// nie minął.
-//
+// Granice kubełków (jaki VIN zaczyna kubełek N) liczy get_sitemap_boundaries
+// w Postgresie przez NTILE — patrz długi komentarz w lib/seo.js po co (offset
+// i zakres prefiksu VIN-u zawiodły przy tej skali). To osobny, DŁUGO
+// cache'owany (24h — ten sam rytm co codzienna synchronizacja) request, bo
+// samo policzenie granic to jeden skan+sort całej tabeli — tanie raz na
+// dobę, kosztowne przy każdym request Googlebota.
+const getSitemapBoundaries = unstable_cache(
+  async (sourceTable, chunkCount) => {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase.rpc('get_sitemap_boundaries', {
+      p_table: sourceTable,
+      p_chunks: chunkCount,
+    });
+    if (error) throw error;
+    // RPC zwraca [{chunk_index, start_vin}, ...] posortowane po chunk_index —
+    // zamieniamy na zwykłą tablicę startVin[i], łatwiejszą do indeksowania.
+    const boundaries = new Array(chunkCount).fill(null);
+    for (const row of data || []) {
+      boundaries[row.chunk_index] = row.start_vin;
+    }
+    return boundaries;
+  },
+  ['sitemap-boundaries'],
+  { revalidate: 90000, tags: ['sitemap'] }
+);
+
 // Kawałki 0..CARS_SITEMAP_CHUNKS-1 to "cars" (historyczne — Sold/Not
 // sold/ON APPROVAL), reszta to "active_lots" (jeszcze niesprzedane) —
 // wcześniej w sitemapie w ogóle nie było active_lots, więc setki tysięcy
 // realnie działających stron (patrz fix getCarByVin() — kiedyś 404,
 // teraz 200) nigdy nie trafiały do Google (zgłoszone: "nowe podstrony się
 // nie indeksują").
+//
+// revalidate na getSitemapChunk samym ustawiony celowo DŁUGO (25h, z zapasem
+// ponad dobowy cykl synchronizacji) — 1h okazało się za krótkie: cache
+// wygasał w ciągu dnia i Google potrafił trafić na moment tuż po wygaśnięciu,
+// czyli dokładnie w to samo zimne zapytanie, któremu cache miał zapobiegać.
+// Świeżość danych zapewnia zamiast tego revalidateTag('sitemap') wywoływane
+// po każdej synchronizacji (patrz app/api/sync/route.js i
+// app/api/sync-active/route.js).
 export const getSitemapChunk = unstable_cache(
   async (chunkId) => {
     const supabase = getSupabaseClient();
 
     if (chunkId < CARS_SITEMAP_CHUNKS) {
-      const from = chunkId * SITEMAP_CHUNK_SIZE;
-      const to = from + SITEMAP_CHUNK_SIZE - 1;
+      const boundaries = await getSitemapBoundaries('cars', CARS_SITEMAP_CHUNKS);
+      const start = boundaries[chunkId];
+      const end = boundaries[chunkId + 1] || null;
+      if (!start) return [];
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('cars')
         .select('vin, updated_at')
         .in('sale_status', ['Sold', 'Not sold', 'ON APPROVAL'])
+        .gte('vin', start)
         .order('vin')
-        .range(from, to);
+        .limit(45000);
+      if (end) query = query.lt('vin', end);
 
+      const { data, error } = await query;
       if (error) throw error;
       return (data || []).filter((row) => isValidVin(row.vin));
     }
 
-    const activeChunkId = chunkId - CARS_SITEMAP_CHUNKS;
-    const from = activeChunkId * SITEMAP_CHUNK_SIZE;
-    const to = from + SITEMAP_CHUNK_SIZE - 1;
+    const activeChunkIndex = chunkId - CARS_SITEMAP_CHUNKS;
+    const boundaries = await getSitemapBoundaries('active_lots', ACTIVE_LOTS_SITEMAP_CHUNKS);
+    const start = boundaries[activeChunkIndex];
+    const end = boundaries[activeChunkIndex + 1] || null;
+    if (!start) return [];
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('active_lots')
       .select('vin, updated_at')
       .not('vin', 'is', null)
+      .gte('vin', start)
       .order('vin')
-      .range(from, to);
+      .limit(45000);
+    if (end) query = query.lt('vin', end);
 
+    const { data, error } = await query;
     if (error) throw error;
     return (data || []).filter((row) => isValidVin(row.vin));
   },
